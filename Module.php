@@ -197,13 +197,77 @@ class Module extends AbstractModule
     {
         self::trace("attachListeners() called - DEVELOPMENT VERSION WITH ALL FIXES");
 
+        // CRITICAL: Video thumbnail generation event listeners
+        $sharedEventManager->attach(
+            'Omeka\Api\Adapter\MediaAdapter',
+            'api.create.post',
+            [$this, 'handleVideoThumbnailGeneration']
+        );
+
+        $sharedEventManager->attach(
+            'Omeka\Api\Adapter\MediaAdapter',
+            'api.update.post',
+            [$this, 'handleVideoThumbnailGeneration']
+        );
+
+        // Optional: Page display events
         $sharedEventManager->attach(
             'Omeka\Controller\Site\Page',
             'view.show.after',
             [$this, 'handleVideoThumbnailDisplay']
         );
 
-        self::trace("Comprehensive fixes event listeners attached");
+        self::trace("Comprehensive fixes event listeners attached (including video thumbnail generation)");
+    }
+
+    /**
+     * Handle video thumbnail generation when media is created or updated
+     */
+    public function handleVideoThumbnailGeneration($event)
+    {
+        self::trace("handleVideoThumbnailGeneration() called");
+
+        try {
+            $media = $event->getParam('response')->getContent();
+
+            // Only process video files
+            if (strpos($media->getMediaType(), 'video/') === 0) {
+                self::trace("Video media detected - ID: " . $media->getId() . ", Type: " . $media->getMediaType());
+
+                // Get service manager
+                $services = $this->getServiceLocator();
+                if (!$services) {
+                    // Try to get from event
+                    $services = $event->getTarget()->getServiceLocator();
+                }
+
+                if ($services && $services->has('DerivativeMedia\Service\VideoThumbnailService')) {
+                    $videoThumbnailService = $services->get('DerivativeMedia\Service\VideoThumbnailService');
+
+                    // Get thumbnail percentage from settings
+                    $settings = $services->get('Omeka\Settings');
+                    $percentage = (int) $settings->get('derivativemedia_video_thumbnail_percentage', 25);
+
+                    self::trace("Generating video thumbnail for media " . $media->getId() . " at {$percentage}% position");
+
+                    // Generate the thumbnail
+                    $success = $videoThumbnailService->generateThumbnail($media, $percentage);
+
+                    if ($success) {
+                        self::trace("Video thumbnail generated successfully for media " . $media->getId());
+                    } else {
+                        self::trace("Video thumbnail generation failed for media " . $media->getId());
+                    }
+                } else {
+                    self::trace("VideoThumbnailService not available");
+                }
+            } else {
+                self::trace("Non-video media detected - ID: " . $media->getId() . ", Type: " . $media->getMediaType());
+            }
+
+        } catch (Exception $e) {
+            self::trace("ERROR in handleVideoThumbnailGeneration: " . $e->getMessage());
+        }
     }
 
     public function handleVideoThumbnailDisplay(Event $event)
@@ -297,10 +361,45 @@ class Module extends AbstractModule
             $defaultSettings = $config['derivativemedia']['settings'];
             $params = $form->getData();
 
+            // Save settings first
             foreach ($params as $name => $value) {
                 if (array_key_exists($name, $defaultSettings)) {
                     $settings->set($name, $value);
                     self::trace("Setting saved: $name = " . var_export($value, true));
+                }
+            }
+
+            // CRITICAL: Check for job dispatch buttons
+            if (isset($params['process_video_thumbnails'])) {
+                self::trace("Video thumbnail job dispatch requested");
+
+                try {
+                    // Get job dispatcher
+                    $jobDispatcher = $services->get('Omeka\Job\Dispatcher');
+
+                    // Prepare job arguments
+                    $jobArgs = [
+                        'query' => [], // Process all video media
+                        'force_regenerate' => isset($params['force_regenerate_thumbnails']) ? (bool)$params['force_regenerate_thumbnails'] : false,
+                        'percentage' => isset($params['derivativemedia_video_thumbnail_percentage']) ? (int)$params['derivativemedia_video_thumbnail_percentage'] : null,
+                    ];
+
+                    self::trace("Dispatching GenerateVideoThumbnails job with args: " . json_encode($jobArgs));
+
+                    // Dispatch the job
+                    $job = $jobDispatcher->dispatch('DerivativeMedia\Job\GenerateVideoThumbnails', $jobArgs);
+
+                    if ($job) {
+                        $controller->messenger()->addSuccess('Video thumbnail generation job started successfully. Check the Jobs page for progress.'); // @translate
+                        self::trace("Job dispatched successfully with ID: " . $job->getId());
+                    } else {
+                        $controller->messenger()->addError('Failed to start video thumbnail generation job.'); // @translate
+                        self::trace("Job dispatch failed - no job returned");
+                    }
+
+                } catch (Exception $e) {
+                    $controller->messenger()->addError('Error starting video thumbnail generation job: ' . $e->getMessage()); // @translate
+                    self::trace("Job dispatch error: " . $e->getMessage());
                 }
             }
 

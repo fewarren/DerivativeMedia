@@ -6,6 +6,7 @@ use DerivativeMedia\Module;
 use DerivativeMedia\Mvc\Controller\Plugin\TraitDerivative;
 use Laminas\Http\Response;
 use Laminas\View\Model\JsonModel;
+use Laminas\View\Model\ViewModel;
 
 class IndexController extends \Omeka\Controller\IndexController
 {
@@ -141,6 +142,31 @@ class IndexController extends \Omeka\Controller\IndexController
     }
 
     /**
+     * CRITICAL FIX: Handle /download/files/ URLs that VideoRenderer and AudioRenderer expect
+     */
+    public function downloadFileAction()
+    {
+        $folder = $this->params('folder');
+        $id = $this->params('id');
+        $filename = $this->params('filename');
+
+        // Construct the file path
+        $filepath = sprintf('/var/www/omeka-s/files/%s/%s/%s', $folder, $id, $filename);
+
+        // Check if file exists
+        if (!file_exists($filepath) || !is_readable($filepath)) {
+            $this->getResponse()->setStatusCode(404);
+            return $this->getResponse();
+        }
+
+        // Determine media type
+        $mediaType = mime_content_type($filepath) ?: 'application/octet-stream';
+
+        // Send the file
+        return $this->sendFile($filepath, $mediaType, $filename, 'inline', true);
+    }
+
+    /**
      * This is the 'file' action that is invoked when a user wants to download
      * the given file.
      *
@@ -256,5 +282,92 @@ class IndexController extends \Omeka\Controller\IndexController
 
         // Return response to avoid default view rendering and to manage events.
         return $response;
+    }
+
+    /**
+     * Debug action to display viewer detection information
+     */
+    public function debugAction()
+    {
+        $serviceLocator = $this->getEvent()->getApplication()->getServiceManager();
+        $viewerDetector = $serviceLocator->get('DerivativeMedia\Service\ViewerDetector');
+
+        $debugInfo = $viewerDetector->getViewerDebugInfo();
+        $activeViewers = $viewerDetector->getActiveVideoViewers();
+        $bestViewer = $viewerDetector->getBestVideoViewer();
+
+        // Get sample media for URL strategy testing
+        $sampleMedia = null;
+        $sampleStrategy = null;
+        try {
+            $mediaList = $this->api()->search('media', ['media_type' => 'video/mp4', 'limit' => 1])->getContent();
+            if (!empty($mediaList)) {
+                $sampleMedia = $mediaList[0];
+                $sampleStrategy = $viewerDetector->getVideoUrlStrategy($sampleMedia, 'browsingarchive');
+            }
+        } catch (\Exception $e) {
+            // Ignore errors
+        }
+
+        return new JsonModel([
+            'debug_info' => $debugInfo,
+            'active_viewers' => $activeViewers,
+            'best_viewer' => $bestViewer,
+            'sample_media' => $sampleMedia ? [
+                'id' => $sampleMedia->id(),
+                'title' => $sampleMedia->displayTitle(),
+                'media_type' => $sampleMedia->mediaType(),
+                'strategy' => $sampleStrategy
+            ] : null,
+            'timestamp' => date('Y-m-d H:i:s')
+        ]);
+    }
+
+    /**
+     * Video player action that respects the preferred viewer setting
+     * This creates a dedicated video player page with only the preferred viewer
+     */
+    public function videoPlayerAction()
+    {
+        $siteSlug = $this->params('site-slug');
+        $mediaId = $this->params('media-id');
+
+        // Get the media object
+        try {
+            $media = $this->api()->read('media', ['id' => $mediaId])->getContent();
+        } catch (\Exception $e) {
+            $this->getResponse()->setStatusCode(404);
+            return $this->notFoundAction();
+        }
+
+        // Get the site object
+        try {
+            $site = $this->api()->read('sites', ['slug' => $siteSlug])->getContent();
+        } catch (\Exception $e) {
+            $this->getResponse()->setStatusCode(404);
+            return $this->notFoundAction();
+        }
+
+        // Get viewer detection service using modern Omeka S approach
+        $serviceLocator = $this->getEvent()->getApplication()->getServiceManager();
+        $viewerDetector = $serviceLocator->get('DerivativeMedia\Service\ViewerDetector');
+
+        // Get the best viewer for this video
+        $bestViewer = $viewerDetector->getBestVideoViewer();
+        $debugInfo = $viewerDetector->getViewerDebugInfo();
+
+        // Return ViewModel with variables and explicit template (modern Omeka S approach)
+        $viewModel = new ViewModel([
+            'media' => $media,
+            'site' => $site,
+            'bestViewer' => $bestViewer,
+            'debugInfo' => $debugInfo,
+            'siteSlug' => $siteSlug,
+        ]);
+
+        // Explicitly set template to override automatic resolution
+        $viewModel->setTemplate('derivative-media/video-player');
+
+        return $viewModel;
     }
 }

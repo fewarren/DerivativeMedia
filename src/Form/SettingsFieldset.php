@@ -150,6 +150,60 @@ class SettingsFieldset extends Fieldset
                     'rows' => 5,
                 ],
             ])
+
+            ->add([
+                'name' => 'derivativemedia_video_thumbnail_enabled',
+                'type' => Element\Checkbox::class,
+                'options' => [
+                    'element_group' => 'derivative_media',
+                    'label' => 'Enable automatic video thumbnail generation', // @translate
+                    'info' => 'Automatically generate thumbnails when video files are uploaded.', // @translate
+                ],
+                'attributes' => [
+                    'id' => 'derivativemedia_video_thumbnail_enabled',
+                ],
+            ])
+            ->add([
+                'name' => 'derivativemedia_video_thumbnail_percentage',
+                'type' => Element\Number::class,
+                'options' => [
+                    'element_group' => 'derivative_media',
+                    'label' => 'Default thumbnail position (%)', // @translate
+                    'info' => 'Percentage of video duration for thumbnail capture (0-100). Default is 25%.', // @translate
+                ],
+                'attributes' => [
+                    'id' => 'derivativemedia_video_thumbnail_percentage',
+                    'min' => 0,
+                    'max' => 100,
+                    'step' => 1,
+                ],
+            ])
+            ->add([
+                'name' => 'derivativemedia_ffmpeg_path',
+                'type' => Element\Text::class,
+                'options' => [
+                    'element_group' => 'derivative_media',
+                    'label' => 'FFmpeg path', // @translate
+                    'info' => 'Full path to the FFmpeg executable. Leave empty to use system default.', // @translate
+                ],
+                'attributes' => [
+                    'id' => 'derivativemedia_ffmpeg_path',
+                    'placeholder' => '/usr/bin/ffmpeg',
+                ],
+            ])
+            ->add([
+                'name' => 'derivativemedia_ffprobe_path',
+                'type' => Element\Text::class,
+                'options' => [
+                    'element_group' => 'derivative_media',
+                    'label' => 'FFprobe path', // @translate
+                    'info' => 'Full path to the FFprobe executable. Leave empty to use system default.', // @translate
+                ],
+                'attributes' => [
+                    'id' => 'derivativemedia_ffprobe_path',
+                    'placeholder' => '/usr/bin/ffprobe',
+                ],
+            ])
         ;
     }
 }

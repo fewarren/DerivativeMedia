@@ -101,6 +101,11 @@ return [
             'createDerivative' => Service\ControllerPlugin\CreateDerivativeFactory::class,
         ],
     ],
+    'jobs' => [
+        'invokables' => [
+            'DerivativeMedia\Job\GenerateVideoThumbnails' => Job\GenerateVideoThumbnails::class,
+        ],
+    ],
     'router' => [
         'routes' => [
             // Dynamic formats.
@@ -207,6 +212,8 @@ return [
             // FIXED: New settings to control item page behavior
             'derivativemedia_enable_item_page_enhancements' => false,
             'derivativemedia_enable_custom_file_renderers' => true,
+            // SECURITY: Download prevention setting
+            'derivativemedia_disable_video_downloads' => false,
             // DEBUG: Enhanced debugging options
             'derivativemedia_debug_enabled' => true,
             'derivativemedia_debug_level' => 'detailed',

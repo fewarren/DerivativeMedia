@@ -10,12 +10,9 @@ use Laminas\ServiceManager\Factory\FactoryInterface;
 class CustomServerUrlFactory implements FactoryInterface
 {
     /**
-     * Create and return CustomServerUrl view helper
+     * Instantiates and returns a new CustomServerUrl view helper.
      *
-     * @param ContainerInterface $services
-     * @param string $requestedName
-     * @param array|null $options
-     * @return CustomServerUrl
+     * @return CustomServerUrl The newly created CustomServerUrl view helper instance.
      */
     public function __invoke(ContainerInterface $services, $requestedName, array $options = null)
     {

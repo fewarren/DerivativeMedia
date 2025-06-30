@@ -21,24 +21,27 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Logging functions
+# log_info prints an informational message to stdout with blue coloring.
 log_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
 }
 
+# log_success prints a success message in green to stdout.
 log_success() {
     echo -e "${GREEN}[SUCCESS]${NC} $1"
 }
 
+# log_warning prints a warning message to stdout with yellow highlighting.
 log_warning() {
     echo -e "${YELLOW}[WARNING]${NC} $1"
 }
 
+# log_error prints an error message in red to standard output.
 log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# Help function
+# show_help displays usage instructions and examples for the deployment script.
 show_help() {
     cat << EOF
 Usage: $0 [OPTIONS]
@@ -92,7 +95,7 @@ if [[ -z "$OMEKA_ROOT" ]]; then
     exit 1
 fi
 
-# Version bumping function
+# bump_version increments the patch version in config/module.ini, backing up and updating the file, or simulating the change in dry-run mode.
 bump_version() {
     log_info "Bumping module version..."
 
@@ -158,7 +161,7 @@ bump_version() {
     log_success "Version bumped from $current_version to $new_version"
 }
 
-# Validation function
+# validate_environment checks for the presence of required source files, directories, and write permissions before deployment, exiting with an error if any validation fails.
 validate_environment() {
     log_info "Validating deployment environment..."
     
@@ -199,7 +202,7 @@ validate_environment() {
     log_success "Environment validation passed"
 }
 
-# Backup function
+# create_backup creates a timestamped backup of the existing deployed module in the Omeka S modules directory, storing it under /tmp if present. In dry-run mode, it logs the intended backup action without performing it.
 create_backup() {
     local target_dir="$OMEKA_ROOT/modules/$MODULE_NAME"
     
@@ -222,7 +225,7 @@ create_backup() {
     log_success "Backup created: $backup_dir"
 }
 
-# Deploy function
+# deploy_module deploys the module to the Omeka S installation, copying all necessary files and verifying critical components are present. In dry-run mode, it logs intended actions without making changes. Excludes deployment scripts, markdown files, test/debug scripts, backups, and git metadata from the deployment. Exits with an error if critical files are missing after deployment.
 deploy_module() {
     log_info "Deploying $MODULE_NAME module..."
     
@@ -274,7 +277,7 @@ deploy_module() {
     log_success "Module files deployed successfully"
 }
 
-# Set permissions function
+# set_permissions sets ownership and permissions for the deployed module files and directories in the Omeka S installation. In dry-run mode, it logs intended changes without applying them.
 set_permissions() {
     log_info "Setting file permissions..."
     
@@ -299,7 +302,7 @@ set_permissions() {
     log_success "Permissions set successfully"
 }
 
-# Clear cache function
+# clear_cache reloads PHP-FPM and removes cached files from the Omeka S cache directory to ensure a clean deployment environment.
 clear_cache() {
     log_info "Clearing caches..."
     
@@ -324,7 +327,7 @@ clear_cache() {
     log_success "Cache cleared successfully"
 }
 
-# Verification function
+# verify_deployment checks the deployed module for critical files, file integrity, and logs the deployed version to confirm successful deployment.
 verify_deployment() {
     log_info "Verifying deployment..."
     
@@ -364,7 +367,7 @@ verify_deployment() {
     return 0
 }
 
-# Main deployment function
+# main orchestrates the deployment process for the DerivativeMedia module, executing validation, version bumping, backup, deployment, permission setting, cache clearing, and post-deployment verification steps.
 main() {
     log_info "Starting deployment of $MODULE_NAME module"
     log_info "Source: $SCRIPT_DIR"

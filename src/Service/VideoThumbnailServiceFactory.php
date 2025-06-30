@@ -7,6 +7,14 @@ use Laminas\ServiceManager\Factory\FactoryInterface;
 
 class VideoThumbnailServiceFactory implements FactoryInterface
 {
+    /**
+     * Creates and configures a VideoThumbnailService instance using application settings and dependencies from the service container.
+     *
+     * @param ContainerInterface $services The service container.
+     * @param string $requestedName The name of the requested service.
+     * @param array|null $options Optional configuration options.
+     * @return VideoThumbnailService The configured video thumbnail service.
+     */
     public function __invoke(ContainerInterface $services, $requestedName, array $options = null)
     {
         $settings = $services->get('Omeka\Settings');

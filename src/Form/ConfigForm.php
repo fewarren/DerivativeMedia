@@ -11,6 +11,11 @@ use Omeka\Form\Element as OmekaElement;
 
 class ConfigForm extends Form
 {
+    /**
+     * Initializes the configuration form with sections for video thumbnail settings, viewer preferences, debugging options, derivative media processing, and batch video thumbnail generation.
+     *
+     * Adds all form elements as optional fields, grouped into logical sections for configuring derivative media processing and batch operations. Each element includes descriptive labels and informational text to guide user input.
+     */
     public function init(): void
     {
         // STEP-BY-STEP APPROACH: Start with working settings, add functionality gradually
@@ -371,7 +376,12 @@ class ConfigForm extends Form
     }
 
     /**
-     * Create input filter to make all fields optional and fix validation issues
+     * Creates an input filter that marks all form fields as optional and disables validation.
+     *
+     * All listed form elements are configured to allow empty values and have no validators or filters,
+     * ensuring that no validation errors occur regardless of input.
+     *
+     * @return InputFilter The configured input filter for the form.
      */
     protected function createInputFilter(): InputFilter
     {
@@ -421,7 +431,11 @@ class ConfigForm extends Form
     }
 
     /**
-     * Override isValid to fix validation issues for configuration forms
+     * Determines if the form is valid, ignoring common validation errors for optional configuration fields.
+     *
+     * This override filters out known validation error messages related to required values, range checks, pattern mismatches, and empty inputs. If only these errors are present, the form is considered valid to improve usability for configuration forms with optional fields.
+     *
+     * @return bool True if the form is valid or only contains ignored validation errors; otherwise, false.
      */
     public function isValid(): bool
     {

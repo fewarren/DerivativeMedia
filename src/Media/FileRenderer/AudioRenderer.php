@@ -15,6 +15,15 @@ class AudioRenderer implements RendererInterface
         'controls' => true,
     ];
 
+    /**
+     * Renders an HTML5 audio element for a media file, including derivative sources if available.
+     *
+     * Generates an <audio> tag with appropriate <source> elements for each available audio format, supporting playback options such as controls, autoplay, loop, muted, and preload. If derivative audio files exist, they are included as sources; the original file can also be appended based on configuration. Provides a fallback download link if the browser does not support HTML5 audio.
+     *
+     * @param MediaRepresentation $media The media file to render as audio.
+     * @param array $options Optional rendering options (e.g., controls, autoplay, loop, muted, class, preload).
+     * @return string The HTML markup for the audio player.
+     */
     public function render(
         PhpRenderer $view,
         MediaRepresentation $media,

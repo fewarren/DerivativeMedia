@@ -9,6 +9,16 @@ use Interop\Container\ContainerInterface;
 
 class VideoThumbnailBlockFormFactory implements FactoryInterface
 {
+    /**
+     * Creates and returns a new instance of VideoThumbnailBlockForm.
+     *
+     * Retrieves the DebugManager for tracing and logging, generates a unique operation ID, and traces the factory invocation. Form options are not populated here to allow for site-specific handling elsewhere.
+     *
+     * @param ContainerInterface $container The service container.
+     * @param string $requestedName The name of the requested service.
+     * @param array|null $options Optional configuration for the form (not used here).
+     * @return VideoThumbnailBlockForm The newly created form instance.
+     */
     public function __invoke(ContainerInterface $container, $requestedName, array $options = null)
     {
         // CRITICAL DEBUG: Add error_log to ensure factory is being called

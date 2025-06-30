@@ -1,0 +1,887 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-02-19 00:00+0000"
+"MI+ZONE\n"
+"PO-Revision-Date: \n"
+"Last-Translator: Daniel Berthereau <Daniel.fr@Berthereau.net>\n"
+"Language-Team: \n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.2.2\n"
+
+#: data/scripts/upgrade.php:33 Module.php:240
+#, php-format
+msgid "The module %1$s should be upgraded to version %2$s or later."
+msgstr "Le module %1$s doit être mis à niveau à la version %2$s ou supérieure."
+
+#: Module.php:296
+msgid "WARNING:"
+msgstr "ATTENTION :"
+
+#: Module.php:515
+#: view/common/resource-page-block-layout/derivative-media.phtml:15
+msgid "Derivative files"
+msgstr "Fichiers dérivés"
+
+#: src/Controller/IndexController.php:32
+msgid "This type is not supported."
+msgstr "Ce type n’est pas géré."
+
+#: src/Controller/IndexController.php:41
+msgid "This type is not available."
+msgstr "Ce type n’est pas disponible."
+
+#: src/Controller/IndexController.php:58
+msgid "Resource is not an item."
+msgstr "La ressource n’est pas un contenu."
+
+#: src/Controller/IndexController.php:80
+msgid "This derivative is ready. Reload the page."
+msgstr "Ce fichier dérivé est prêt. Recharger la page."
+
+#: src/Controller/IndexController.php:90
+msgid "This derivative is not ready. Ask the webmaster for it."
+msgstr "Ce fichier dérivé n’est pas prêt. Demandez-le au webmestre."
+
+#: src/Controller/IndexController.php:99
+msgid "This type of derivative file cannot be prepared for this item."
+msgstr "Ce type de fichier dérivé ne peut pas être préparé pour ce contenu."
+
+#: src/Controller/IndexController.php:117
+msgid "This derivative files of this item cannot be prepared."
+msgstr "Ce fichier dérivé ne peut pas être créé pour ce contenu."
+
+#: src/Controller/IndexController.php:133
+msgid "This derivative is being created. Come back later."
+msgstr "Ce fichier dérivé est en cours de création. Revenez plus tard."
+
+#: src/Media/FileRenderer/AudioRenderer.php:78
+#, php-format
+msgid "Your browser does not support HTML5 audio, but you can download it: %s."
+msgstr ""
+"Votre navigateur ne supporte pas HTML5 audio, mais vous pouvez le "
+"télécharger : %s."
+
+#: src/Media/FileRenderer/VideoRenderer.php:87
+#, php-format
+msgid "Your browser does not support HTML5 video, but you can download it: %s."
+msgstr ""
+"Votre navigateur ne supporte pas HTML5 video, mais vous pouvez le "
+"télécharger : %s."
+
+#: view/common/derivatives.phtml:39
+msgid "Are you sure to download this file?"
+msgstr "Êtes-vous sûr de télécharger ce fichier ?"
+
+#: view/common/derivatives.phtml:40
+msgid "Are you sure to download the file of {size}?"
+msgstr "Êtes-vous sûr de télécharger ce fichier de {size}?"
+
+#: view/common/derivatives.phtml:43
+msgid "Ok"
+msgstr "Ok"
+
+#: view/common/derivatives.phtml:44
+msgid "The file is in queue. Reload the page later."
+msgstr "Le fichier est dans la file. Rechargez la page plus tard."
+
+#: view/common/derivatives.phtml:45
+msgid ""
+"[\"Bytes\", \"KB\", \"MB\", \"GB\", \"TB\", \"PB\", \"EB\", \"ZB\", \"YB\"]"
+msgstr ""
+"[\"octets\", \"Ko\", \"Mo\", \"Go\", \"To\", \"Po\", \"Eo\", \"Zo\", \"Yo\"]"
+
+#: data/scripts/upgrade.php:42
+msgid "A new option was added to enable specific converters."
+msgstr "Une nouvelle option a été ajoutée pour activer les convertisseurs."
+
+#: data/scripts/upgrade.php:46
+msgid ""
+"It is now possible to output a zip of all files of an item (format url: "
+"https://example.org/derivative/zip/{item_id})."
+msgstr ""
+"Il est désormais possible de créer un fichier zip avec tous les fichiers "
+"d’un contenu (format url: https://example.org/derivative/zip/{item_id})."
+
+#: data/scripts/upgrade.php:54
+msgid "Many new formats have been added: zip, text, alto, iiif, pdf."
+msgstr "De nombreux formats ont été ajoutés : zip, text, alto, iiif, pdf."
+
+#: data/scripts/upgrade.php:58
+msgid ""
+"A resource page block allows to display the list of available derivatives of "
+"a resource."
+msgstr ""
+"Un bloc de page permet désormais d'afficher la liste des fichiers dérivés "
+"disponibles pour une ressource."
+
+#: data/scripts/upgrade.php:62
+msgid "Check {link_url}new settings{link_end}."
+msgstr "Vérifier {link_url}les nouveaux paramètres{link_end}."
+
+#: data/scripts/upgrade.php:71
+msgid ""
+"The module manages now http requests \"Content Range\" that allow to read "
+"files faster."
+msgstr ""
+"Le module gère désormais les requêtes http de type « Content Range » qui "
+"permet de lire les fichiers plus rapidement."
+
+#: data/scripts/upgrade.php:81
+msgid ""
+"Helpers \"derivativeMedia\" and \"hasDerivative\" were renamed "
+"\"derivatives\" and \"derivativeList\"."
+msgstr ""
+"Les view helpers « derivativeMedia » et « hasDerivative » ont été renommés "
+"en « derivatives » et « derivativeList »."
+
+#: data/scripts/upgrade.php:86
+msgid ""
+"The module manages now pdf files. Check {link_url}new settings{link_end}."
+msgstr ""
+"Le module gère désormais les fichiers pdf. Vous pouvez {link_url}vérifier "
+"les nouveaux paramètres{link_end}."
+
+#: data/scripts/upgrade.php:95
+msgid ""
+"It is now possible to run the job to create derivative and metadata by "
+"items. See {link_url}config form{link_end}."
+msgstr ""
+"Il est désormais possible de lancer une tâche pour créer des fichiers "
+"dérivés et des métadonnées par contenu. Voir la {link_url}"
+"configuration{link_end}."
+
+#: data/scripts/upgrade.php:102
+msgid "Settings were updated. You may check {link_url}them{link_end}."
+msgstr ""
+"Les paramètres ont été mis à jour. Vous pouvez {link_url}les "
+"vérifier{link_end}."
+
+#: Module.php:250
+msgid "The directory \"{path}\" is not writeable."
+msgstr "Le dossier \"{path}\" n’est pas inscriptible."
+
+#: Module.php:258
+msgid ""
+"The extension \"php-zip\" should be installed on the server to create Zip "
+"files."
+msgstr ""
+"L’extension « php-zip » doit être installée sur le serveur pour créer des "
+"fichiers zip."
+
+#: Module.php:271
+msgid ""
+"Before compressing files with config tasks, the settings should be set in "
+"{link_url}main settings{link_end}."
+msgstr ""
+"Avant de convertir les fichiers, les options peuvent être définies dans "
+"{link_url}les paramètres généraux{link_end}."
+
+#: Module.php:303
+msgid ""
+"All derivative files will be kept in the folders specified in the config "
+"inside {path}."
+msgstr ""
+"Tous les fichiers dérivés sont conservés dans des dossiers spécifiés dans la "
+"config à l’intérieur de {path}."
+
+#: Module.php:382
+#, php-format
+msgid ""
+"This page allows to launch background job to prepare static derivative files "
+"according to parameters set in %1$smain settings%2$s."
+msgstr ""
+"Cette page permet de lancer des tâches en arrière-plan pour préparer les "
+"fichiers dérivés statiques en fonction des %1$sparamètres généraux%2$s."
+
+#: Module.php:414
+msgid "No job launched."
+msgstr "Aucune tâche lancée."
+
+#: Module.php:427
+msgid ""
+"The command \"ffmpeg\" should be available on the server to convert audio or "
+"video."
+msgstr ""
+"La ocmmande « ffmpeg » doit être installée sur le serveur pour convertir des "
+"fichiers audio ou vidéo."
+
+#: Module.php:436
+msgid ""
+"The command \"gs\" (ghostscript) should be available on the server to "
+"convert pdf."
+msgstr ""
+"La commande « gs » (ghostscript) doit être installée sur le serveur pour "
+"convertir des pdf."
+
+#: Module.php:452
+msgid ""
+"Creating derivative media by items ({link_url}job #{job_id}{link_end}, "
+"{link_log}logs{link_end})"
+msgstr ""
+"Création des médias dérivés ({link_url}tâche #{job_id}{link_end}, {link_log}"
+"journaux{link_end})"
+
+#: Module.php:465
+msgid ""
+"Creating derivative media ({link_url}job #{job_id}{link_end}, {link_log}"
+"logs{link_end})"
+msgstr ""
+"Création des médias dérivés ({link_url}tâche #{job_id}{link_end}, {link_log}"
+"journaux{link_end})"
+
+#: Module.php:478
+msgid ""
+"Storing metadata for existing files ({link}job #{job_id}{link_end}, "
+"{link_log}logs{link_end})"
+msgstr ""
+"Enregistrement des métadonnées pour les fichiers présents ({link}tâche "
+"#{job_id}{link_end}, {link_log}journaux{link_end})"
+
+#: Module.php:774
+msgid "[Derivative Media] This module requires a local store currently."
+msgstr ""
+"[Media dérivés] Ce module nécessite un espace de stockage local actuellement."
+
+#: Module.php:840
+msgid ""
+"The command-line utility \"ffmpeg\" should be installed and should be "
+"available in the cli path to make audio and video derivatives."
+msgstr ""
+"L’utilitaire en ligne de commande « ffmpeg » doit être installé et "
+"disponible dans le chemin de la ligne de commande pour convertir des audios "
+"et des vidéos."
+
+#: Module.php:855
+msgid ""
+"The command-line utility \"gs\" (ghoscript) should be installed and should "
+"be available in the cli path to make pdf derivatives."
+msgstr ""
+"L’utilitaire en ligne de commande « gs » (ghostscript) doit être installé et "
+"disponible dans le chemin de la ligne de commande pour convertir des pdf."
+
+#: view/common/derivatives.phtml:20
+msgid "Zip of all files"
+msgstr "Zip de tous les fichiers"
+
+#: view/common/derivatives.phtml:21
+msgid "Zip of media files"
+msgstr "Zip des fichiers média"
+
+#: view/common/derivatives.phtml:22
+msgid "Zip of other files"
+msgstr "Zip des autres fichiers"
+
+#: view/common/derivatives.phtml:23 src/Form/SettingsFieldset.php:35
+msgid "Pdf"
+msgstr "Pdf"
+
+#: view/common/derivatives.phtml:25
+msgid "Extracted text"
+msgstr "Texte extrait"
+
+#: view/common/derivatives.phtml:26
+msgid "Ocr Xml Alto"
+msgstr "Ocr Xml Alto"
+
+#: view/common/derivatives.phtml:27
+msgid "Iiif manifest v2"
+msgstr "Iiif manifeste v2"
+
+#: view/common/derivatives.phtml:28
+msgid "Iiif manifest v3"
+msgstr "Iiif manifeste v3"
+
+#: view/common/derivatives.phtml:29
+msgid "Text from pdf as xml"
+msgstr "Texte du pdf en xml"
+
+#: src/Mvc/Controller/Plugin/CreateDerivative.php:101
+msgid "Unable to create directory."
+msgstr "Impossible de créer le dossier."
+
+#: src/Mvc/Controller/Plugin/CreateDerivative.php:107
+msgid "Unable to remove existing file."
+msgstr "Impossible de supprimer le fichier."
+
+#: src/Mvc/Controller/Plugin/CreateDerivative.php:117
+msgid "The derivative is currently beeing created."
+msgstr "Le fichier dérivé est en cours de création."
+
+#: src/Mvc/Controller/Plugin/CreateDerivative.php:154
+msgid "To create xml alto, the module IiifSearch is required for now."
+msgstr "Pour créer le xml alto, le module IiifSearch est nécessaire."
+
+#: src/Mvc/Controller/Plugin/CreateDerivative.php:166
+msgid "To create iiif manifest, the module IiifServer is required for now."
+msgstr "Pour créer un manifest Iiif, le module IiifServer est nécessaire."
+
+#: src/Mvc/Controller/Plugin/CreateDerivative.php:197
+msgid "Extraction can be done on a single pdf attached to an item."
+msgstr ""
+"L’extraction peut être réalisée sur le fichier pdf unique d’un contenu."
+
+#: src/Mvc/Controller/Plugin/CreateDerivative.php:273
+msgid "The php extension \"php-zip\" must be installed."
+msgstr "L’extension « php-zip » doit être installée."
+
+#: src/Mvc/Controller/Plugin/CreateDerivative.php:280
+msgid "Unable to create the zip file."
+msgstr "Impossible de créer le fichier zip."
+
+#: src/Job/DerivativeItem.php:27
+msgid "No item #{item_id}: no derivative media to create."
+msgstr "Pas de contenu #{item_id} : aucun fichier dérivé à créer."
+
+#: src/Job/DerivativeMedia.php:27
+msgid "No media #{media_id}: no derivative media to create."
+msgstr "Média #{media_id} : aucun fichier dérivé à créer."
+
+#: src/Job/DerivativeMedia.php:35
+msgid "Media #{media_id}: not an audio or video file."
+msgstr "Média #{media_id} : pas un fichier audio ou vidéo."
+
+#: src/Job/DerivativeMediaTrait.php:72
+msgid ""
+"The command-line utility \"ffmpeg\" and/or \"gs\" (ghostscript) should be "
+"installed and should be available in the cli path to make derivatives."
+msgstr ""
+"L’utilitaire en ligne de commande « ffmpeg » et/ou  « gs » (ghostscript) "
+"doit être installé et disponible dans le chemin de la ligne de commande."
+
+#: src/Job/DerivativeMediaTrait.php:110
+msgid ""
+"The derivative command \"{command}\" for {type} contains forbidden "
+"characters [$<>;&|%\"\\..]."
+msgstr ""
+"La commande \"{command}\" pour {type} contient des caractères interdits [$<>;"
+"&|%\"\\..]."
+
+#: src/Job/DerivativeMediaTrait.php:122
+msgid ""
+"The derivative pattern \"{pattern}\" for {type} does not create a real path."
+msgstr ""
+"Le modèle de chemin dérivé \"{pattern}\" pour {type} ne permet pas de créer "
+"un chemin réel."
+
+#: src/Job/DerivativeMediaTrait.php:134
+msgid "A local store is required to derivate media currently."
+msgstr ""
+"Un espace de stockage local est nécessaire pour dériver les médias "
+"actuellement."
+
+#: src/Job/DerivativeMediaTrait.php:166
+msgid ""
+"The command-line utility \"ffmpeg\" should be installed and should be "
+"available in the cli path to make derivatives."
+msgstr ""
+"L’utilitaire en ligne de commande « ffmpeg » doit être installé et "
+"disponible dans le chemin de la ligne de commande."
+
+#: src/Job/DerivativeMediaTrait.php:177
+msgid ""
+"The command-line utility \"gs\" (ghostscript) should be installed and should "
+"be available in the cli path to make derivatives."
+msgstr ""
+"L’utilitaire en ligne de commande « gs » (ghostscript) doit être installé et "
+"disponible dans le chemin de la ligne de commande pour faire des fichiers "
+"dérivés."
+
+#: src/Job/DerivativeMediaTrait.php:189 src/Job/DerivativeMediaTrait.php:385
+msgid "Media #{media_id}: the original file does not exist ({filename})"
+msgstr "Média #{media_id} : le fichier original n’existe pas ({filename})."
+
+#: src/Job/DerivativeMediaTrait.php:197 src/Job/DerivativeMediaTrait.php:393
+msgid "Media #{media_id}: the original file is not readable ({filename})."
+msgstr ""
+"Média #{media_id} : le fichier original ne peut pas être lu ({filename})."
+
+#: src/Job/DerivativeMediaTrait.php:209 src/Job/DerivativeMediaTrait.php:405
+msgid "Media #{media_id}: Process stopped."
+msgstr "Média #{media_id} : traitement arrêté."
+
+#: src/Job/DerivativeMediaTrait.php:225 src/Job/DerivativeMediaTrait.php:421
+msgid "Media #{media_id}: the output cannot be the original folder."
+msgstr ""
+"Média #{media_id} : le dossier d’écriture ne peut pas être le dossier "
+"original."
+
+#: src/Job/DerivativeMediaTrait.php:234 src/Job/DerivativeMediaTrait.php:430
+msgid ""
+"Media #{media_id}: the derivative pattern \"{pattern}\" does not create a "
+"real path."
+msgstr ""
+"Média #{media_id} : le modèle de chemin \"{pattern}\" ne correspond pas à un "
+"vrai chemin."
+
+#: src/Job/DerivativeMediaTrait.php:242 src/Job/DerivativeMediaTrait.php:254
+#: src/Job/DerivativeMediaTrait.php:263
+msgid "Media #{media_id}: derivative media is not writeable ({filename})."
+msgstr ""
+"Média #{media_id} : le fichier dérivé ne peut pas être écrit ({filename})."
+
+#: src/Job/DerivativeMediaTrait.php:285
+msgid "Media #{media_id}: existing derivative media removed ({filename})."
+msgstr ""
+"Média #{media_id} : le fichier dérivé existant a été supprimé ({filename})."
+
+#: src/Job/DerivativeMediaTrait.php:291
+msgid "Media #{media_id}: creating derivative media \"{filename}\"."
+msgstr "Média #{media_id} : création du fichier dérivé \"{filename}\"."
+
+#: src/Job/DerivativeMediaTrait.php:309
+msgid "Media #{media_id}: derivative media cannot be created ({filename})."
+msgstr ""
+"Média #{media_id} : le fichier dérivé ne peut pas être créé ({filename})."
+
+#: src/Job/DerivativeMediaTrait.php:318
+msgid ""
+"Media #{media_id}: Output results for \"{filename}\":\n"
+"{output}"
+msgstr ""
+"Média #{media_id} : Sortie de la commande pour \"{filename}\": {output}"
+
+#: src/Job/DerivativeMediaTrait.php:326
+msgid "Media #{media_id}: derivative media is empty ({filename})."
+msgstr "Média #{media_id} : le fichier dérivé est vide ({filename})."
+
+#: src/Job/DerivativeMediaTrait.php:338 src/Job/DerivativeMediaTrait.php:476
+msgid ""
+"Media #{media_id}: derivative media is not audio, video, or pdf, but "
+"\"{mediatype}\" ({filename})."
+msgstr ""
+"Média #{media_id} : le fichier dérivé n’est pas un fichier audio, vidéo, ou "
+"pdf, mais « {mediatype} » ({filename})."
+
+#: src/Job/DerivativeMediaTrait.php:349
+msgid "Media #{media_id}: derivative media cannot be stored ({filename})."
+msgstr ""
+"Média #{media_id} : le fichier dérivé ne peut pas être enregistré "
+"({filename})."
+
+#: src/Job/DerivativeMediaTrait.php:364
+msgid "Media #{media_id}: derivative media created ({filename})."
+msgstr "Média #{media_id} : le fichier dérivé a été créé ({filename})."
+
+#: src/Job/DerivativeMediaTrait.php:448
+msgid "Media #{media_id}: the derivative file is not readable ({filename})."
+msgstr ""
+"Média #{media_id} : le fichier dérivé ne peut pas être lu ({filename})."
+
+#: src/Job/DerivativeMediaTrait.php:459
+msgid "Media #{media_id}: the derivative file is empty ({filename})."
+msgstr "Média #{media_id} : le fichier dérivé est vide ({filename})."
+
+#: src/Job/DerivativeMediaTrait.php:487
+msgid "Media #{media_id}: derivative media file metadata stored ({filename})."
+msgstr ""
+"Média #{media_id} : les métadonnées du fichier dérivé ont été enregistrées "
+"({filename})."
+
+#: src/Job/CreateDerivatives.php:50
+msgid "No enabled type of derivative to process."
+msgstr "Aucun type de dérivé n’est activé."
+
+#: src/Job/CreateDerivatives.php:65
+msgid "No items selected."
+msgstr "Aucun contenu choisi."
+
+#: src/Job/CreateDerivatives.php:82
+msgid "The job was stopped."
+msgstr "La tâche a été arrêtée."
+
+#: src/Job/CreateDerivatives.php:97
+msgid ""
+"Item #{item_id}: derivative files for types {types} created successfully."
+msgstr ""
+"Contenu #{item_id} : les fichiers dérivés de types {types} ont bien été "
+"créés."
+
+#: src/Job/DerivativeMediaFile.php:72 src/Job/DerivativeMediaMetadata.php:64
+msgid "The query or the list of item sets output no items."
+msgstr "La requête ou la liste des collections ne renvoie aucun contenu."
+
+#: src/Job/DerivativeMediaFile.php:114
+msgid ""
+"No media to process for creation of derivative medias (on a total of {total} "
+"medias). You may check your query."
+msgstr ""
+"Aucun média à traiter pour la création des médias dérivés (sur un total de "
+"{total} médias). Vous pouvez vérifier votre requête."
+
+#: src/Job/DerivativeMediaFile.php:121
+msgid ""
+"Processing creation of derivative medias of {total_process} medias (on a "
+"total of {total} medias)."
+msgstr ""
+"Traitement lancé pour la création des fichiers dérivés de {total_process} "
+"médias (sur un total de {total} médias)."
+
+#: src/Job/DerivativeMediaFile.php:146
+msgid ""
+"The job \"Derivative Media\" was stopped: {count}/{total} resources "
+"processed."
+msgstr ""
+"La tâche \"Médias dérivés\" a été arrêtée : {count}/{total} ressources "
+"traitées."
+
+#: src/Job/DerivativeMediaFile.php:153
+msgid "Media #{media_id} ({count}/{total}): creating derivative files."
+msgstr "Média #{media_id} ({count}/{total}) : création des fichiers dérivés."
+
+#: src/Job/DerivativeMediaFile.php:165
+msgid ""
+"Media #{media_id} ({count}/{total}): The media is not an audio, a video or a "
+"pdf file."
+msgstr ""
+"Média #{media_id} ({count}/{total}) : le média n’est pas un fichier audio, "
+"vidéo ou un pdf."
+
+#: src/Job/DerivativeMediaFile.php:182
+msgid ""
+"End of the creation of derivative files: {count}/{total} processed, "
+"{skipped} skipped, {succeed} succeed, {failed} failed."
+msgstr ""
+"Fin de la création des fichiers dérivés : {count}/{total} traités, {skipped} "
+"ignorés, {succeed} avec succès, {failed} échecs."
+
+#: src/Job/DerivativeMediaMetadata.php:106
+msgid ""
+"No media to process for storing metadata of derivative medias (on a total of "
+"{total} medias). You may check your query."
+msgstr ""
+"Aucun média à traiter pour l’enregistrement des métadonnées des médias "
+"dérivés (sur un total de {total} médias). Vous pouvez vérifier votre requête."
+
+#: src/Job/DerivativeMediaMetadata.php:113
+msgid ""
+"Processing storing metadata of derivative medias of {total_process} medias "
+"(on a total of {total} medias)."
+msgstr ""
+"Traitement lancé pour l’enregistrement des métadonnées des fichiers dérivés "
+"de {total_process} médias (sur un total de {total} médias)."
+
+#: src/Job/DerivativeMediaMetadata.php:138
+msgid ""
+"The job \"Storing metadata\" was stopped: {count}/{total} resources "
+"processed."
+msgstr ""
+"La tâche \"Enregistrement des métadonnées\" a été arrêtée : {count}/{total} "
+"ressources traitées."
+
+#: src/Job/DerivativeMediaMetadata.php:145
+msgid ""
+"Media #{media_id} ({count}/{total}): storing metadata of derivative files."
+msgstr ""
+"Média #{media_id} ({count}/{total}) : enregistrement des métadonnées des "
+"fichiers dérivés."
+
+#: src/Job/DerivativeMediaMetadata.php:157
+msgid ""
+"Media #{media_id} ({count}/{total}): The media is not an audio or video file."
+msgstr ""
+"Média #{media_id} ({count}/{total}) : le média n’est pas un fichier audio ou "
+"vidéo."
+
+#: src/Job/DerivativeMediaMetadata.php:174
+msgid ""
+"End of the process to store metadata of derivative files: {count}/{total} "
+"processed, {skipped} skipped, {succeed} succeed, {failed} failed."
+msgstr ""
+"Fin de l’enregistrement des métadonnées des fichiers dérivés : {count}/"
+"{total} traités, {skipped} ignorés, {succeed} avec succès, {failed} échecs."
+
+#: src/Form/SettingsFieldset.php:15 src/Form/SettingsFieldset.php:18
+msgid "Derivative Media"
+msgstr "Médias dérivés"
+
+#: src/Form/SettingsFieldset.php:31
+msgid "Formats to convert"
+msgstr "Formats à convertir"
+
+#: src/Form/SettingsFieldset.php:33
+msgid "Audio"
+msgstr "Audio"
+
+#: src/Form/SettingsFieldset.php:34
+msgid "Video"
+msgstr "Vidéo"
+
+#: src/Form/SettingsFieldset.php:36
+msgid "Zip item files"
+msgstr "Zip des fichiers"
+
+#: src/Form/SettingsFieldset.php:37
+msgid "Zip item image/audio/video files"
+msgstr "Zip des images, audio et vidéo"
+
+#: src/Form/SettingsFieldset.php:38
+msgid "Zip item other files"
+msgstr "Zip des autres fichiers"
+
+#: src/Form/SettingsFieldset.php:39
+msgid "Pdf from images files"
+msgstr "Pdf à partir des fichiers images"
+
+#: src/Form/SettingsFieldset.php:40
+msgid "Single text file from by-page txt files"
+msgstr "Fichier texte unique à partir fichiers texte par page"
+
+#: src/Form/SettingsFieldset.php:41
+msgid "Single text file from property \"extracted text\""
+msgstr "Fichier texte unique à partir de la propriété « texte extrait »"
+
+#: src/Form/SettingsFieldset.php:42
+msgid ""
+"Single xml Alto from by-page xml Alto (standard ocr format, require Iiif "
+"Search)"
+msgstr ""
+"Fichier xml Alto unique à partir de multiple fichier xml Alto par page "
+"(format ocr standard, nécessite Iiif Search)"
+
+#: src/Form/SettingsFieldset.php:43
+msgid "Iiif manifest (version 2, require Iiif Server)"
+msgstr "Iiif manifeste (version 2, requiert Iiif Server)"
+
+#: src/Form/SettingsFieldset.php:44
+msgid "Iiif manifest (version 3, require Iiif Server)"
+msgstr "Iiif manifeste (version 3, requiert Iiif Server)"
+
+#: src/Form/SettingsFieldset.php:45
+msgid "Text as xml from a single pdf, mainly for Iiif Search"
+msgstr ""
+"Texte en xml à partir d’un fichier pdf unique, principalement pour Iiif "
+"Search"
+
+#: src/Form/SettingsFieldset.php:57
+msgid ""
+"Create or update derivative files on individual save (not batch process)"
+msgstr ""
+"Créer et mettre à jour tous les fichiers dérivés lors d’un enregistrement "
+"(hors traitement en lot)"
+
+#: src/Form/SettingsFieldset.php:58
+msgid ""
+"Quick processes can be done during a web request (30 seconds); heavy "
+"processes are audio, video, pdf and zip with many big files and require a "
+"background job. Audio and video processes are never reprocessed, since the "
+"original cannot change."
+msgstr ""
+"Les traitements rapides peuvent être réalisés pendant une requête web (30 "
+"seconds) ; les traitements lourds sont les audio, vidéo, pdf et zip avec de "
+"nombreux fichiers, qui nécessitent une tâche en arrière-plan. Les audios et "
+"vidéos ne sont jamais retraités, car les originaux ne peuvent pas changer."
+
+#: src/Form/SettingsFieldset.php:61
+msgid "No (may need manual process)"
+msgstr "Non (peut nécessiter un traitement manuel)"
+
+#: src/Form/SettingsFieldset.php:62
+msgid "Update only existing derivative files (quick processes only)"
+msgstr ""
+"Mettre à jour seulement les fichiers dérivés existants (traitement rapide "
+"uniquement)"
+
+#: src/Form/SettingsFieldset.php:63
+msgid "Update only existing derivative files"
+msgstr "Mettre à jour seulement les fichiers dérivés existants"
+
+#: src/Form/SettingsFieldset.php:64
+msgid "Create and update all quick derivatives"
+msgstr "Créer et mettre à jour tous les fichiers dérivés rapides"
+
+#: src/Form/SettingsFieldset.php:65
+msgid ""
+"Create and update all derivatives (take care of disk space and server "
+"overload)"
+msgstr ""
+"Créer et mettre à jour tous les fichiers dérivés (attention à l’espace "
+"disque et à la charge serveur)"
+
+#: src/Form/SettingsFieldset.php:77
+msgid "Max total media size in megabytes to prepare a derivative file live"
+msgstr ""
+"Taille maximale d’un fichier en méga-octets pour créer les fichiers dérivés "
+"en temps réel"
+
+#: src/Form/SettingsFieldset.php:89
+msgid "Audio converters"
+msgstr "Convertisseurs audio"
+
+#: src/Form/SettingsFieldset.php:90 src/Form/SettingsFieldset.php:117
+msgid ""
+"Each converter is one row with a filepath pattern, a \"=\", and the ffmpeg "
+"command (without file)."
+msgstr ""
+"Chaque convertisseur correspond à une ligne avec un modèle de chemin, un "
+"\"=\", et la commande ffmpeg (sans le fichier)."
+
+#: src/Form/SettingsFieldset.php:104
+msgid "Append original audio"
+msgstr "Ajouter l’audio originale"
+
+#: src/Form/SettingsFieldset.php:116
+msgid "Video converters"
+msgstr "Convertisseurs vidéo"
+
+#: src/Form/SettingsFieldset.php:131
+msgid "Append original video"
+msgstr "Ajouter la vidéo originale"
+
+#: src/Form/SettingsFieldset.php:143
+msgid "Pdf converters"
+msgstr "Convertisseurs pdf"
+
+#: src/Form/SettingsFieldset.php:144
+msgid ""
+"Each converter is one row with a filepath pattern, a \"=\", and the gs "
+"command (ghostscript, without file)."
+msgstr ""
+"Chaque convertisseur correspond à une ligne avec un modèle de chemin, un "
+"\"=\", et la commande gs (ghostscript, sans le fichier)."
+
+#: src/Form/ConfigForm.php:20
+msgid "Create derivatives by items"
+msgstr "Créer les dérivés par contenu"
+
+#: src/Form/ConfigForm.php:30 src/Form/ConfigForm.php:64
+msgid "Query items"
+msgstr "Requête pour les contenus"
+
+#: src/Form/ConfigForm.php:41
+msgid "Create derivative files by items in background"
+msgstr "Créer les fichiers dérivés par contenu en arrière-plan"
+
+#: src/Form/ConfigForm.php:45 src/Form/ConfigForm.php:146
+msgid "Process"
+msgstr "Traitement"
+
+#: src/Form/ConfigForm.php:54
+msgid "Create derivatives by media"
+msgstr "Créer les dérivés par média"
+
+#: src/Form/ConfigForm.php:82
+msgid "Select item sets…"
+msgstr "Choisir des collections…"
+
+#: src/Form/ConfigForm.php:89
+msgid "Ingesters"
+msgstr "Ingéreurs"
+
+#: src/Form/ConfigForm.php:103
+msgid "Renderers"
+msgstr "Rendus"
+
+#: src/Form/ConfigForm.php:117
+msgid "Media types"
+msgstr "Types de média"
+
+#: src/Form/ConfigForm.php:131
+msgid "Media ids"
+msgstr "Ids médias"
+
+#: src/Form/ConfigForm.php:142
+msgid "Create derivative files in background"
+msgstr "Créer les fichiers dérivés en arrière-plan"
+
+#: src/Form/ConfigForm.php:153
+msgid "Store metadata for existing files in directories"
+msgstr "Enregistrer les métadonnées des fichiers présents dans les dossiers"
+
+#: src/Form/ConfigForm.php:154
+msgid ""
+"When files are created outside of Omeka and copied in the right directories "
+"(webm/, mp3/, etc.) with the right names (same as original and extension), "
+"Omeka should record some metadata to be able to render them."
+msgstr ""
+"Quand les fichiers sont créés en dehors d’Omeka et copié dans les dossiers "
+"correspondants (webm/, mp3/, etc.) avec les noms corrects (le même que "
+"l’original avec une extension), Omeka doit enregistrer quelques métadonnées "
+"pour être en mesure de les rendre."
+
+#: src/Form/ConfigForm.php:158
+msgid "Update metadata"
+msgstr "Mettre à jour les métadonnées"
+
+#: src/Site/ResourcePageBlockLayout/DerivativeMedia.php:13
+msgid "Derivative Media List"
+msgstr "Liste des médias dérivés"
+
+#, php-format
+#~ msgid "This module requires the module \"%s\"."
+#~ msgstr "Ce module requiert le module \"%s\"."
+
+#, php-format
+#~ msgid "This module requires modules \"%s\"."
+#~ msgstr "Ce module requiert les modules \"%s\"."
+
+#~ msgid "This module has resources that cannot be installed."
+#~ msgstr "Ce module a des ressources qui ne peuvent pas être installées."
+
+#~ msgid ""
+#~ "This module cannot install its tables, because they exist already. Try to "
+#~ "remove them first."
+#~ msgstr ""
+#~ "Ce module ne peut pas installer ses tables car elles existent déjà. "
+#~ "Essayez de les supprimer manuellement."
+
+#, php-format
+#~ msgid "The module removed tables \"%s\" from a previous broken install."
+#~ msgstr ""
+#~ "Le module a supprimé les tables \"%s\" depuis une installation échouée."
+
+#, php-format
+#~ msgid ""
+#~ "The module \"%s\" was automatically deactivated because the dependencies "
+#~ "are unavailable."
+#~ msgstr ""
+#~ "Le module \"%s\" a été automatiquement désactivé car ses dépendances ne "
+#~ "sont plus disponibles."
+
+#, php-format
+#~ msgid "Check %1$snew settings%2$s."
+#~ msgstr "Vérifiez les %1$snouveaux paramètres%2$s."
+
+#~ msgid "The task requires \"ffmpeg\"."
+#~ msgstr "Cette tâche requiert « ffmpeg »."
+
+#~ msgid "No item #{item_id}: no derivative to create."
+#~ msgstr "Contenu #{item_id} : aucun fichier dérivé à créer."
+
+#~ msgid "No types to process."
+#~ msgstr "Pas de types de données à traiter."
+
+#~ msgid "Ingesters to process"
+#~ msgstr "Ingesteurs à traiter"
+
+#~ msgid "Renderers to process"
+#~ msgstr "Gestionnaire de rendu à traiter"
+
+#~ msgid "Media types to process"
+#~ msgstr "Types de média à traiter"
+
+#~ msgid "Enabled conversion for audio"
+#~ msgstr "Conversion audio activée"
+
+#~ msgid "Set your parameters in main settings to recreate derivative medias."
+#~ msgstr ""
+#~ "Indiquer vos options dans les paramètres généraux pour recréer des médias "
+#~ "dérivés."
+
+#~ msgid "This processor is available in module Bulk Check too."
+#~ msgstr "Le processeur est également disponible dans le module Bulk Check."
+
+#~ msgid "Command \"ffmpeg\" not found."
+#~ msgstr "Commande \"ffmpeg\" non trouvée."
+
+#~ msgid "Run in background"
+#~ msgstr "Lancer en arrière-plan"

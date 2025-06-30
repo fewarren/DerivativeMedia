@@ -18,6 +18,11 @@ class SettingsFieldset extends Fieldset
         'derivative_media' => 'Derivative Media', // @translate
     ];
 
+    /**
+     * Initializes the fieldset with form elements for configuring derivative media settings.
+     *
+     * Adds grouped form elements for enabling and customizing derivative file generation, including format selection, update behavior, size limits, converter definitions, video thumbnail options, and paths to external tools.
+     */
     public function init(): void
     {
         $this

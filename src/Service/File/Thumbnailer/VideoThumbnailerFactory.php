@@ -8,6 +8,13 @@ use Laminas\ServiceManager\Factory\FactoryInterface;
 
 class VideoThumbnailerFactory implements FactoryInterface
 {
+    /**
+     * Creates and returns a VideoThumbnailer instance configured with application settings.
+     *
+     * Retrieves ffmpeg and ffprobe paths and the thumbnail extraction percentage from application settings, applying default values if not set, and uses these to instantiate the VideoThumbnailer.
+     *
+     * @return VideoThumbnailer The configured VideoThumbnailer instance.
+     */
     public function __invoke(ContainerInterface $services, $requestedName, array $options = null)
     {
         error_log('DerivativeMedia VideoThumbnailerFactory: Creating VideoThumbnailer');

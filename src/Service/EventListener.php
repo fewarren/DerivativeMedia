@@ -13,13 +13,20 @@ class EventListener
      */
     protected $services;
 
+    /**
+     * Initializes the EventListener with the provided service container.
+     *
+     * @param \Interop\Container\ContainerInterface $services The service container for accessing application services.
+     */
     public function __construct($services)
     {
         $this->services = $services;
     }
 
     /**
-     * Attach event listeners
+     * Attaches event listeners for media-related API events, job status changes, and media ingest events with high priority.
+     *
+     * Registers handlers to enable comprehensive detection and processing of media events, including video thumbnail generation and ingest tracking.
      */
     public function attach(SharedEventManagerInterface $sharedEventManager)
     {
@@ -75,7 +82,9 @@ class EventListener
     }
 
     /**
-     * Handle ANY media-related events - comprehensive detection
+     * Handles any media-related event, triggering video thumbnail generation if applicable.
+     *
+     * Detects media entities in the event response, checks if the media is a video, and generates a thumbnail if enabled in settings. Also processes any stored video ingest information for deferred thumbnail generation. Exceptions are caught and logged.
      */
     public function onAnyMediaEvent(Event $event)
     {
@@ -142,7 +151,9 @@ class EventListener
     }
 
     /**
-     * Handle job events
+     * Handles job status change events by logging the event name and job class if available.
+     *
+     * @param Event $event The job event to handle.
      */
     public function onJobEvent(Event $event)
     {
@@ -158,7 +169,11 @@ class EventListener
     }
 
     /**
-     * Handle ingest events
+     * Handles media ingest file post events, detecting video files and storing ingest information for deferred processing.
+     *
+     * If a video file is detected in the ingest event, stores its temporary file path, MIME type, and request details for later thumbnail generation.
+     *
+     * @param Event $event The media ingest event containing file and request information.
      */
     public function onIngestEvent(Event $event)
     {
@@ -206,7 +221,9 @@ class EventListener
     }
 
     /**
-     * Store video ingest information for later processing
+     * Saves video ingest metadata to a temporary JSON file for deferred processing.
+     *
+     * Stores the temporary file path, MIME type, timestamp, and a unique request ID in the `/tmp` directory for later retrieval and processing.
      */
     protected function storeVideoIngestInfo($tempPath, $mimeType, $request)
     {
@@ -230,7 +247,9 @@ class EventListener
     }
 
     /**
-     * Process any stored video ingest information
+     * Processes stored video ingest information files to trigger video media handling.
+     *
+     * Searches for temporary JSON files containing video ingest data, processes those that are at least 5 seconds old by attempting to find and handle the corresponding video media, and deletes processed or stale files.
      */
     protected function processStoredVideoIngests()
     {
@@ -275,7 +294,12 @@ class EventListener
     }
 
     /**
-     * Find and process video media that was created from an ingest
+     * Searches for recently created video media matching the provided ingest information and generates a thumbnail for the first match.
+     *
+     * Attempts to find up to 10 recent media items with the specified MIME type. If a video media is found, generates a video thumbnail and returns true. Returns false if no matching video media is found or if an exception occurs.
+     *
+     * @param array $ingestInfo Associative array containing ingest details such as 'mime_type' and 'request_id'.
+     * @return bool True if a matching video media is found and processed; false otherwise.
      */
     protected function findAndProcessVideoMedia($ingestInfo)
     {
@@ -322,7 +346,12 @@ class EventListener
     }
 
     /**
-     * Generate video thumbnail
+     * Generates a thumbnail image for a video media entity at a configured percentage position.
+     *
+     * Attempts to create a video thumbnail using the VideoThumbnailService. The thumbnail is generated at the percentage position specified in settings (default is 25%). Returns true on success, or false if thumbnail generation fails or an exception occurs.
+     *
+     * @param object $media The media entity representing the video.
+     * @return bool True if the thumbnail was generated successfully, false otherwise.
      */
     protected function generateVideoThumbnail($media)
     {

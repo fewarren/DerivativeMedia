@@ -16,6 +16,15 @@ class VideoRenderer implements RendererInterface
         'controls' => true,
     ];
 
+    /**
+     * Renders an HTML5 <video> element for the given media, with configurable attributes and optional download prevention.
+     *
+     * Merges default and provided options to set video attributes such as width, height, poster, autoplay, controls, loop, muted, CSS class, and preload. If download prevention is enabled via settings, disables the download button, right-click context menu, picture-in-picture, and remote playback. Provides appropriate fallback content based on download settings.
+     *
+     * @param MediaRepresentation $media The media item to render as a video.
+     * @param array $options Optional rendering options (e.g., width, height, poster, autoplay, controls, loop, muted, class, preload).
+     * @return string The HTML markup for the video element.
+     */
     public function render(
         PhpRenderer $view,
         MediaRepresentation $media,

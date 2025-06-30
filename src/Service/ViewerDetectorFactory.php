@@ -10,12 +10,9 @@ use Laminas\ServiceManager\Factory\FactoryInterface;
 class ViewerDetectorFactory implements FactoryInterface
 {
     /**
-     * Create and return ViewerDetector service
+     * Instantiates and returns a ViewerDetector service with its required dependencies.
      *
-     * @param ContainerInterface $services
-     * @param string $requestedName
-     * @param array|null $options
-     * @return ViewerDetector
+     * @return ViewerDetector The configured ViewerDetector instance.
      */
     public function __invoke(ContainerInterface $services, $requestedName, array $options = null)
     {

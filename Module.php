@@ -13,6 +13,11 @@ use Omeka\Module\AbstractModule;
 
 class Module extends AbstractModule
 {
+    /**
+     * Logs a message with a timestamp to both the PHP error log and a dedicated trace log file.
+     *
+     * @param string $message The message to log.
+     */
     private static function trace($message)
     {
         $timestamp = date('Y-m-d H:i:s');
@@ -23,6 +28,13 @@ class Module extends AbstractModule
         error_log("DERIVATIVEMEDIA_TRACE: $message");
     }
 
+    /**
+     * Loads and returns the module configuration with a fixed file store base path and URI.
+     *
+     * Overrides the file store configuration to ensure consistent media URL generation. Returns an empty array if the configuration file is missing.
+     *
+     * @return array The module configuration array with overridden file store settings.
+     */
     public function getConfig()
     {
         self::trace("getConfig() called - DEVELOPMENT VERSION WITH ALL FIXES");
@@ -49,6 +61,13 @@ class Module extends AbstractModule
         }
     }
 
+    /**
+     * Applies comprehensive overrides and fixes during application bootstrap.
+     *
+     * This method overrides the ServerUrl view helper, file store service, and file renderer registration to ensure consistent media URL generation and custom audio/video rendering. It also tests the applied fixes and attaches event listeners for further module functionality.
+     *
+     * @param MvcEvent $e The MVC event triggered during application bootstrap.
+     */
     public function onBootstrap(MvcEvent $e)
     {
         self::trace("=== onBootstrap() called - DEVELOPMENT VERSION WITH ALL FIXES ===");
@@ -193,6 +212,12 @@ class Module extends AbstractModule
         self::trace("=== Comprehensive fixes onBootstrap() completed ===");
     }
 
+    /**
+     * Attaches event listeners for media and page events.
+     *
+     * Registers listeners to trigger video thumbnail generation after media creation or update,
+     * and to handle video thumbnail display after a site page is shown.
+     */
     public function attachListeners(SharedEventManagerInterface $sharedEventManager)
     {
         self::trace("attachListeners() called - DEVELOPMENT VERSION WITH ALL FIXES");
@@ -221,7 +246,9 @@ class Module extends AbstractModule
     }
 
     /**
-     * Handle video thumbnail generation when media is created or updated
+     * Generates a video thumbnail when a media item of type video is created or updated.
+     *
+     * If the media is a video, retrieves the configured thumbnail percentage and invokes the video thumbnail service to generate a thumbnail at that position.
      */
     public function handleVideoThumbnailGeneration($event)
     {
@@ -270,26 +297,54 @@ class Module extends AbstractModule
         }
     }
 
+    /**
+     * Handles the display event for video thumbnails after a page view.
+     *
+     * This method is a placeholder for future implementation and currently logs its invocation.
+     */
     public function handleVideoThumbnailDisplay(Event $event)
     {
         self::trace("handleVideoThumbnailDisplay() called - DEVELOPMENT VERSION");
     }
 
+    /**
+     * Handles module installation logic.
+     *
+     * Currently logs the invocation of the install process.
+     */
     public function install(ServiceLocatorInterface $serviceLocator)
     {
         self::trace("install() called");
     }
 
+    /**
+     * Handles module uninstallation logic.
+     *
+     * Currently logs the uninstallation event for tracing purposes.
+     */
     public function uninstall(ServiceLocatorInterface $serviceLocator)
     {
         self::trace("uninstall() called");
     }
 
+    /**
+     * Handles the module upgrade process between versions.
+     *
+     * Logs the upgrade action with the old and new version numbers.
+     */
     public function upgrade($oldVersion, $newVersion, ServiceLocatorInterface $serviceLocator)
     {
         self::trace("upgrade() called from $oldVersion to $newVersion");
     }
 
+    /**
+     * Generates and returns the HTML for the module configuration form.
+     *
+     * Retrieves current settings, initializes the configuration form with these values, and renders it using the provided renderer. Returns an empty string if an error occurs.
+     *
+     * @param PhpRenderer $renderer The renderer used to generate the form HTML.
+     * @return string The rendered HTML of the configuration form, or an empty string on failure.
+     */
     public function getConfigForm(PhpRenderer $renderer)
     {
         self::trace("getConfigForm() called");
@@ -331,6 +386,14 @@ class Module extends AbstractModule
         }
     }
 
+    /**
+     * Handles submission of the module configuration form, saving settings and optionally dispatching a video thumbnail generation job.
+     *
+     * Validates form data, updates module settings, and if requested, starts a background job to generate video thumbnails for all video media. Adds success or error messages to the controller messenger based on the outcome.
+     *
+     * @param AbstractController $controller The controller handling the form submission.
+     * @return bool True on successful processing, false on validation or processing failure.
+     */
     public function handleConfigForm(AbstractController $controller)
     {
         self::trace("handleConfigForm() called");

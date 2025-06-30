@@ -12,6 +12,11 @@ class VideoThumbnailer implements ThumbnailerInterface
      */
     protected $options;
 
+    /**
+     * Initializes the VideoThumbnailer with optional configuration settings.
+     *
+     * @param array $options Optional configuration parameters such as FFmpeg paths and thumbnail settings.
+     */
     public function __construct(array $options = [])
     {
         $this->options = $options;
@@ -19,7 +24,14 @@ class VideoThumbnailer implements ThumbnailerInterface
     }
 
     /**
-     * Create thumbnails for video files
+     * Generates thumbnails for a video file at specified sizes and destinations.
+     *
+     * Extracts a frame from the video at a configurable position (by percentage of duration or defaulting to 1 second) and creates thumbnails in various sizes, saving them to the provided destination paths. Supports square and proportional scaling. Returns true if all thumbnails are created successfully; otherwise, returns false. Errors can be recorded in the optional error store.
+     *
+     * @param string $sourcePath Path to the source video file.
+     * @param array $destPaths Associative array mapping size keys (e.g., 'large', 'medium', 'square') to destination file paths.
+     * @param ErrorStore|null $errorStore Optional error store for recording errors encountered during thumbnail creation.
+     * @return bool True if all thumbnails are created successfully, false otherwise.
      */
     public function createThumbnails($sourcePath, $destPaths, ErrorStore $errorStore = null): bool
     {
@@ -135,7 +147,10 @@ class VideoThumbnailer implements ThumbnailerInterface
     }
 
     /**
-     * Check if this thumbnailer supports the given media type
+     * Determines whether the given media type is supported for video thumbnail generation.
+     *
+     * @param string $mediaType The media type to check (e.g., 'video/mp4').
+     * @return bool True if the media type starts with 'video/', otherwise false.
      */
     public function supports($mediaType): bool
     {
@@ -145,7 +160,10 @@ class VideoThumbnailer implements ThumbnailerInterface
     }
 
     /**
-     * Get dimensions for thumbnail size
+     * Returns the pixel dimension corresponding to the specified thumbnail size.
+     *
+     * @param string $size The size key ('large', 'medium', 'square', or other).
+     * @return int The pixel dimension for the given size.
      */
     protected function getDimensionsForSize(string $size): int
     {

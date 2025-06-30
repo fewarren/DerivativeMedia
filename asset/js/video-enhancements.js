@@ -14,6 +14,11 @@
         initVideoEnhancements();
     }
 
+    /**
+     * Initializes video-related enhancements for the page.
+     *
+     * Enhances video thumbnail interactivity, applies viewer-specific improvements, and adds accessibility features once the DOM is ready.
+     */
     function initVideoEnhancements() {
         console.log('DerivativeMedia: Initializing video enhancements');
         
@@ -27,6 +32,11 @@
         addAccessibilityEnhancements();
     }
 
+    /**
+     * Enhances all video thumbnail items with improved keyboard navigation, interactive hover effects, and play event tracking.
+     *
+     * Adds keyboard support for activating thumbnail links, visual feedback on hover, and dispatches a custom event when a video play button is clicked.
+     */
     function enhanceVideoThumbnails() {
         const videoThumbnails = document.querySelectorAll('.video-thumbnail-item');
         
@@ -78,6 +88,11 @@
         });
     }
 
+    /**
+     * Applies enhancements to video elements and viewers on media or item pages.
+     *
+     * If the current page is identified as a media or item page, this function enhances all video elements with custom controls and keyboard shortcuts, and applies additional viewer-specific enhancements.
+     */
     function addViewerEnhancements() {
         // Check if we're on a media or item page
         const isMediaPage = document.body.classList.contains('media') && 
@@ -95,6 +110,12 @@
         }
     }
 
+    /**
+     * Enhances a video element with keyboard controls and accessibility features.
+     *
+     * Adds keyboard shortcuts for play/pause (Space), rewind (ArrowLeft), and fast-forward (ArrowRight), and ensures the video is focusable for keyboard navigation.
+     * @param {HTMLVideoElement} video - The video element to enhance.
+     */
     function enhanceVideoElement(video) {
         // Add custom controls and features
         video.addEventListener('loadedmetadata', function() {
@@ -129,6 +150,11 @@
         }
     }
 
+    /**
+     * Detects and logs the presence of supported video viewers on the page, preparing for viewer-specific enhancements.
+     *
+     * This function identifies OctopusViewer, UniversalViewer, and Mirador viewers, and serves as a hook for adding custom enhancements for each viewer type.
+     */
     function enhanceActiveViewer() {
         // OctopusViewer enhancements
         if (window.OctopusViewer) {
@@ -148,6 +174,11 @@
         }
     }
 
+    /**
+     * Enhances accessibility for video thumbnails and controls by adding ARIA labels, roles, and visible focus indicators.
+     *
+     * Adds descriptive ARIA labels to video thumbnail links, sets appropriate roles and labels on thumbnail containers, hides decorative play buttons from screen readers, and injects CSS for visible focus outlines on interactive elements.
+     */
     function addAccessibilityEnhancements() {
         // Add ARIA labels to video thumbnails
         const videoThumbnails = document.querySelectorAll('.video-thumbnail-item');
@@ -193,7 +224,10 @@
         document.head.appendChild(style);
     }
 
-    // Utility function to detect viewer capabilities
+    /**
+     * Detects and returns the presence of various video viewers and playback capabilities on the current page.
+     * @returns {Object} An object with boolean properties indicating support for OctopusViewer, UniversalViewer, Mirador, VideoJS, and HTML5 video.
+     */
     function detectViewerCapabilities() {
         const capabilities = {
             hasOctopusViewer: !!window.OctopusViewer,

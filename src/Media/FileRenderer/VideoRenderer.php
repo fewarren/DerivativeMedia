@@ -33,7 +33,11 @@ class VideoRenderer implements RendererInterface
 
         $options = array_merge(self::DEFAULT_OPTIONS, $options);
 
-        // DOWNLOAD-PROTECTED: Enhanced video renderer with download prevention
+        // Check if download prevention is enabled
+        $settings = $view->getHelperPluginManager()->getServiceLocator()->get('Omeka\Settings');
+        $disableDownloads = $settings->get('derivativemedia_disable_video_downloads', false);
+
+        // Enhanced video renderer with optional download prevention
         // The URL fixes are already applied by our ServerUrl and File Store overrides
         $attrs = [];
 
@@ -53,8 +57,11 @@ class VideoRenderer implements RendererInterface
         }
         if (isset($options['controls']) && $options['controls']) {
             $attrs[] = 'controls';
-            // DOWNLOAD PREVENTION: Disable download button in video controls
-            $attrs[] = 'controlsList="nodownload"';
+
+            // CONFIGURABLE DOWNLOAD PREVENTION: Disable download button in video controls
+            if ($disableDownloads) {
+                $attrs[] = 'controlsList="nodownload"';
+            }
         }
         if (isset($options['loop']) && $options['loop']) {
             $attrs[] = 'loop';
@@ -69,23 +76,32 @@ class VideoRenderer implements RendererInterface
             $attrs[] = sprintf('preload="%s"', $view->escapeHtml($options['preload']));
         }
 
-        // DOWNLOAD PREVENTION: Disable right-click context menu
-        $attrs[] = 'oncontextmenu="return false"';
+        // CONFIGURABLE DOWNLOAD PREVENTION: Additional security attributes
+        if ($disableDownloads) {
+            // Disable right-click context menu
+            $attrs[] = 'oncontextmenu="return false"';
 
-        // DOWNLOAD PREVENTION: Add additional security attributes
-        $attrs[] = 'disablePictureInPicture';
-        $attrs[] = 'disableRemotePlayback';
+            // Add additional security attributes
+            $attrs[] = 'disablePictureInPicture';
+            $attrs[] = 'disableRemotePlayback';
+        }
 
-        // DOWNLOAD PREVENTION: Remove fallback download link and replace with non-downloadable message
-        $fallbackMessage = sprintf(
-            '<p style="margin: 10px 0; font-style: italic; color: #666;">%s</p>',
-            $view->escapeHtml($view->translate('Your browser does not support HTML5 video.'))
-        );
+        // CONFIGURABLE FALLBACK: Choose between download link or simple message
+        if ($disableDownloads) {
+            // No download link - just compatibility message
+            $fallbackContent = sprintf(
+                '<p style="margin: 10px 0; font-style: italic; color: #666;">%s</p>',
+                $view->escapeHtml($view->translate('Your browser does not support HTML5 video.'))
+            );
+        } else {
+            // Standard fallback with download link
+            $fallbackContent = $view->hyperlink($media->filename(), $media->originalUrl());
+        }
 
         return sprintf(
             '<video %s>%s</video>',
             implode(' ', $attrs),
-            $fallbackMessage
+            $fallbackContent
         );
     }
 }

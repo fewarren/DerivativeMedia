@@ -117,6 +117,18 @@ class ConfigForm extends Form
                     'id' => 'derivativemedia_enable_custom_file_renderers',
                     'required' => false,
                 ],
+            ])
+            ->add([
+                'name' => 'derivativemedia_disable_video_downloads',
+                'type' => Element\Checkbox::class,
+                'options' => [
+                    'label' => 'Disable Video Downloads', // @translate
+                    'info' => 'Prevent users from downloading videos by removing download buttons, disabling right-click context menus, and removing fallback download links. This enhances content protection for sensitive media.', // @translate
+                ],
+                'attributes' => [
+                    'id' => 'derivativemedia_disable_video_downloads',
+                    'required' => false,
+                ],
             ]);
 
         // Debugging Options - Direct form elements

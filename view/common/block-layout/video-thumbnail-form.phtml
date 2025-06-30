@@ -1,0 +1,54 @@
+<?php
+/**
+ * @var \Laminas\View\Renderer\PhpRenderer $this
+ * @var \Omeka\Api\Representation\SitePageBlockRepresentation $block
+ * @var \DerivativeMedia\Form\VideoThumbnailBlockForm $form
+ * @var \Omeka\Api\Representation\SiteRepresentation $site
+ */
+
+$escape = $this->plugin('escapeHtml');
+$translate = $this->plugin('translate');
+?>
+
+<div class="field">
+    <div class="field-meta">
+        <?= $this->formLabel($form->get('media_id')) ?>
+        <div class="field-description"><?= $translate('Select a video media to display thumbnail for') ?></div>
+    </div>
+    <div class="inputs">
+        <?= $this->formSelect($form->get('media_id')->setName('o:block[__blockIndex__][o:data][media_id]')) ?>
+    </div>
+</div>
+
+<div class="field">
+    <div class="field-meta">
+        <?= $this->formLabel($form->get('override_percentage')) ?>
+        <div class="field-description"><?= $translate('Override the default thumbnail capture position (0-100%). Leave blank to use the default setting.') ?></div>
+    </div>
+    <div class="inputs">
+        <?= $this->formNumber($form->get('override_percentage')->setName('o:block[__blockIndex__][o:data][override_percentage]')) ?>
+    </div>
+</div>
+
+<div class="field">
+    <div class="field-meta">
+        <?= $this->formLabel($form->get('heading')) ?>
+        <div class="field-description"><?= $translate('Optional heading for the video thumbnail block.') ?></div>
+    </div>
+    <div class="inputs">
+        <?= $this->formText($form->get('heading')->setName('o:block[__blockIndex__][o:data][heading]')) ?>
+    </div>
+</div>
+
+<div class="field">
+    <div class="field-meta">
+        <?= $this->formLabel($form->get('template')) ?>
+        <div class="field-description"><?= $translate('Choose how to display the video thumbnail.') ?></div>
+    </div>
+    <div class="inputs">
+        <?= $this->formSelect($form->get('template')->setName('o:block[__blockIndex__][o:data][template]')) ?>
+    </div>
+</div>
+
+
+

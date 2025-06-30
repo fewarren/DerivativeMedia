@@ -17,4 +17,36 @@
     .derivative-medias ul li:not(:last-child):after {
         content: ' · ';
     }
+
+    /* FIXED: Ensure proper video media display on item pages */
+    .item.show .media.resource {
+        margin-bottom: 1rem;
+    }
+
+    .item.show .media.resource .thumbnail {
+        max-width: 200px;
+        height: auto;
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+
+    .item.show .media.resource .thumbnail img {
+        width: 100%;
+        height: auto;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    .item.show .media.resource video {
+        max-width: 100%;
+        height: auto;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Prevent small icon thumbnails from appearing too small */
+    .item.show .media.resource .thumbnail[src*="files/medium/"] {
+        min-width: 150px;
+        min-height: 100px;
+        object-fit: cover;
+    }
 }

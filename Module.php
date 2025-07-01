@@ -2,861 +2,457 @@
 
 namespace DerivativeMedia;
 
-if (!class_exists(\Common\TraitModule::class)) {
-    require_once dirname(__DIR__) . '/Common/TraitModule.php';
-}
-
-use Common\Stdlib\PsrMessage;
-use Common\TraitModule;
-use DerivativeMedia\Form\ConfigForm;
 use Laminas\EventManager\Event;
 use Laminas\EventManager\SharedEventManagerInterface;
-use Laminas\Mvc\Controller\AbstractController;
+use Laminas\ModuleManager\ModuleManager;
 use Laminas\Mvc\MvcEvent;
+use Laminas\Mvc\Controller\AbstractController;
+use Laminas\ServiceManager\ServiceLocatorInterface;
 use Laminas\View\Renderer\PhpRenderer;
-use Omeka\Entity\Media;
 use Omeka\Module\AbstractModule;
-use Omeka\Module\Exception\ModuleCannotInstallException;
 
-/**
- * Derivative Media
- *
- * Create derivative audio/video/pdf media files for cross-browser compatibility.
- *
- * @copyright Daniel Berthereau, 2020-2024
- * @license http://www.cecill.info/licences/Licence_CeCILL_V2.1-en.txt
- */
 class Module extends AbstractModule
 {
-    use TraitModule;
-
-    const NAMESPACE = __NAMESPACE__;
+    /**
+     * @var \DerivativeMedia\Service\DebugManager|null
+     */
+    private $logger = null;
 
     /**
-     * Info about the process managed by the module.
+     * Get or initialize the logger instance
      *
-     * For all resources (media and item):
-     * - mode (string): build file as "static", "dynamic", "live" or "dynamic_live".
-     * - level (string): "item" or "media".
-     * - multiple (bool): can create multiple derivatives specified in config.
-     * For resource "item":
-     * - mediatype (string): the media type of the destination.
-     * - extension (string): the extension of the destination.
-     * - size (null|integer): real size or estimation.
-     * - build (array): the config to create the destination. Currently not used.
-     * - dir (string): the destination dir of the type.
-     * - size (bool): check the size to create the file dynamically or not for
-     *   modes "live" and "dynamic_live".
-     * For media, mode is always static.
-     *
-     * @var array
+     * @return \DerivativeMedia\Service\DebugManager
      */
-    const DERIVATIVES = [
-        // Media level.
-        'audio' => [
-            'mode' => 'static',
-            'level' => 'media',
-            'multiple' => true,
-        ],
-        'video' => [
-            'mode' => 'static',
-            'level' => 'media',
-            'multiple' => true,
-        ],
-        'pdf_media' => [
-            'mode' => 'static',
-            'level' => 'media',
-            'multiple' => true,
-        ],
-
-        // Item level.
-        'alto' => [
-            'mode' => 'live',
-            'level' => 'item',
-            'multiple' => false,
-            'mediatype' => 'application/alto+xml',
-            'extension' => 'alto.xml',
-            /*
-            'build' => [
-                'mediatype' => ['application/alto+xml'],
-            ],
-            */
-            'dir' => 'alto',
-            'size' => true,
-        ],
-        'iiif-2' => [
-            'mode' => 'live',
-            'level' => 'item',
-            'multiple' => false,
-            // According to specification for 2.1, the response should be json,
-            // except if client asks json-ld.
-            'mediatype' => 'application/json',
-            'extension' => 'manifest.json',
-            /*
-            'build' => [
-                'mediatype' => ['image', 'audio', 'video'],
-            ],
-            */
-            'dir' => 'iiif/2',
-            'size' => false,
-        ],
-        'iiif-3' => [
-            'mode' => 'live',
-            'level' => 'item',
-            'multiple' => false,
-            'mediatype' => 'application/ld+json;profile="http://iiif.io/api/presentation/3/context.json"',
-            'extension' => 'manifest.json',
-            /*
-            'build' => [
-                'mediatype' => ['image', 'audio', 'video'],
-            ],
-            */
-            'dir' => 'iiif/3',
-            'size' => false,
-        ],
-        'pdf' => [
-            'mode' => 'dynamic',
-            'level' => 'item',
-            'multiple' => false,
-            'mediatype' => 'application/pdf',
-            'extension' => 'pdf',
-            /*
-            'build' => [
-                'mediatype' => ['image'],
-            ],
-            */
-            'dir' => 'pdf',
-            'size' => true,
-        ],
-        'pdf2xml' => [
-            'mode' => 'live',
-            'level' => 'item',
-            'multiple' => false,
-            'mediatype' => 'application/vnd.pdf2xml+xml',
-            'extension' => 'pdf2xml.xml',
-            /*
-            'build' => [
-                'mediatype' => ['application/pdf'],
-            ],
-            */
-            'dir' => 'pdf2xml',
-            'size' => false,
-        ],
-        'txt' => [
-            'mode' => 'live',
-            'level' => 'item',
-            'multiple' => false,
-            'mediatype' => 'text/plain',
-            'extension' => 'txt',
-            /*
-            'build' => [
-                'mediatype' => ['text/plain'],
-            ],
-            */
-            'dir' => 'txt',
-            'size' => true,
-        ],
-        'text' => [
-            'mode' => 'live',
-            'level' => 'item',
-            'multiple' => false,
-            'mediatype' => 'text/plain',
-            'extension' => 'txt',
-            /*
-            'build' => [
-                'property' => 'extracttext:extracted_text',
-            ],
-            */
-            'dir' => 'text',
-            'size' => true,
-        ],
-        'zip' => [
-            'mode' => 'dynamic_live',
-            'level' => 'item',
-            'multiple' => false,
-            'mediatype' => 'application/zip',
-            'extension' => 'zip',
-            /*
-            'build' => [
-                'mediatype' => [''],
-            ],
-            */
-            'dir' => 'zip',
-            'size' => true,
-        ],
-        'zipm' => [
-            'mode' => 'dynamic_live',
-            'level' => 'item',
-            'multiple' => false,
-            'mediatype' => 'application/zip',
-            'extension' => 'zip',
-            /*
-            'build' => [
-                'mediatype' => ['image', 'audio', 'video'],
-            ],
-            */
-            'dir' => 'zipm',
-            'size' => true,
-        ],
-        'zipo' => [
-            'mode' => 'dynamic_live',
-            'level' => 'item',
-            'multiple' => false,
-            'mediatype' => 'application/zip',
-            'extension' => 'zip',
-            /*
-            'build' => [
-                'mediatype_not' => ['image', 'audio', 'video'],
-            ],
-            */
-            'dir' => 'zipo',
-            'size' => true,
-        ],
-    ];
-
-    protected $dependencies = [
-        'Common',
-    ];
-
-    public function onBootstrap(MvcEvent $event): void
+    private function getLogger()
     {
-        parent::onBootstrap($event);
-        $this->getServiceLocator()->get('Omeka\Acl')
-            ->allow(
-                null,
-                ['DerivativeMedia\Controller\Index']
-            );
+        if ($this->logger === null) {
+            try {
+                // Try to get logger from service locator if available
+                if (method_exists($this, 'getServiceLocator') && $this->getServiceLocator()) {
+                    $services = $this->getServiceLocator();
+                    if ($services && $services->has('DerivativeMedia\Service\DebugManager')) {
+                        $this->logger = $services->get('DerivativeMedia\Service\DebugManager');
+                    }
+                }
+            } catch (\Exception $e) {
+                // Service locator not available or service not found
+            }
+
+            // Fallback: create DebugManager directly
+            if ($this->logger === null) {
+                // Include the DebugManager class if not already loaded
+                $debugManagerPath = __DIR__ . '/src/Service/DebugManager.php';
+                if (file_exists($debugManagerPath)) {
+                    require_once $debugManagerPath;
+                    $this->logger = new \DerivativeMedia\Service\DebugManager([
+                        'debug_enabled' => true,
+                        'log_file' => 'derivativemedia_trace.log',
+                        'base_log_path' => null, // Auto-detect
+                    ]);
+                } else {
+                    // Ultimate fallback: create a simple logger
+                    $this->logger = new class {
+                        public function logInfo($message, $component = 'MODULE', $operationId = '') {
+                            error_log("DerivativeMedia: $message");
+                        }
+                        public function logError($message, $component = 'MODULE', $operationId = '') {
+                            error_log("DerivativeMedia ERROR: $message");
+                        }
+                    };
+                }
+            }
+        }
+
+        return $this->logger;
     }
 
-    protected function preInstall(): void
+    /**
+     * Log a trace message using the injected logger
+     *
+     * @param string $message The message to log
+     * @param string $operationId Optional operation ID for tracking
+     */
+    private function trace($message, $operationId = '')
     {
-        $services = $this->getServiceLocator();
-        $plugins = $services->get('ControllerPluginManager');
-        $translate = $plugins->get('translate');
-        $messenger = $plugins->get('messenger');
+        $this->getLogger()->logInfo($message, 'MODULE', $operationId ?: 'module-' . uniqid());
+    }
 
-        if (!method_exists($this, 'checkModuleActiveVersion') || !$this->checkModuleActiveVersion('Common', '3.4.62')) {
-            $message = new \Omeka\Stdlib\Message(
-                $translate('The module %1$s should be upgraded to version %2$s or later.'), // @translate
-                'Common', '3.4.62'
-            );
-            throw new \Omeka\Module\Exception\ModuleCannotInstallException((string) $message);
-        }
 
-        $config = $services->get('Config');
-        $basePath = $config['file_store']['local']['base_path'] ?: (OMEKA_PATH . '/files');
-        if (!is_dir($basePath) || !is_readable($basePath) || !is_writeable($basePath)) {
-            $message = new PsrMessage(
-                'The directory "{path}" is not writeable.', // @translate
-                ['path' => $basePath]
-            );
-            throw new ModuleCannotInstallException((string) $message);
-        }
 
-        if (!class_exists('ZipArchive')) {
-            $message = new PsrMessage(
-                'The extension "php-zip" should be installed on the server to create Zip files.', // @translate
-            );
-            $messenger->addWarning($message);
+    public function getConfig()
+    {
+        $this->trace("getConfig() called - Using standard Omeka S configuration");
+
+        $configFile = __DIR__ . '/config/module.config.php';
+
+        if (file_exists($configFile)) {
+            $config = include $configFile;
+            $this->trace("Module configuration loaded successfully");
+            return $config;
+        } else {
+            $this->trace("ERROR: Config file does not exist!");
+            return [];
         }
     }
 
-    protected function postInstall(): void
+    public function onBootstrap(MvcEvent $e)
     {
-        $services = $this->getServiceLocator();
-        $plugins = $services->get('ControllerPluginManager');
-        $messenger = $plugins->get('messenger');
-        $urlPlugin = $plugins->get('url');
-        $message = new PsrMessage(
-            'Before compressing files with config tasks, the settings should be set in {link_url}main settings{link_end}.', // @translate
-            [
-                'link_url' => sprintf('<a href="%s">', $urlPlugin->fromRoute('admin/default', ['controller' => 'setting', 'action' => 'browse'], ['fragment' => 'derivative-media'])),
-                'link_end' => '</a>',
-            ]
-        );
-        $message->setEscapeHtml(false);
-        $messenger->addWarning($message);
-    }
+        $this->trace("=== onBootstrap() called - DEVELOPMENT VERSION WITH ALL FIXES ===");
 
-    public function warnUninstall(Event $event): void
-    {
-        $view = $event->getTarget();
-        $module = $view->vars()->module;
-        if ($module->getId() != __NAMESPACE__) {
-            return;
+        $serviceManager = $e->getApplication()->getServiceManager();
+
+        // COMPREHENSIVE FIX: Apply all URL generation fixes
+
+        // 1. ServerUrl helper override (fixes hostname issues)
+        $this->trace("Applying ServerUrl override...");
+        try {
+            $viewHelperManager = $serviceManager->get('ViewHelperManager');
+
+            // Get base URL from standard Omeka S configuration
+            $config = $serviceManager->get('Config');
+            $configuredBaseUrl = $config['base_url'] ?? null;
+
+            if (!$configuredBaseUrl) {
+                $this->trace("WARNING: base_url not configured in local.config.php - using auto-detection");
+                // Auto-detect from server variables as fallback
+                $scheme = $_SERVER['REQUEST_SCHEME'] ?? 'http';
+                $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+                $configuredBaseUrl = "$scheme://$host/omeka-s";
+            }
+
+            $forceServerUrl = new class($configuredBaseUrl) extends \Laminas\View\Helper\ServerUrl {
+                private $baseUrl;
+
+                public function __construct($baseUrl) {
+                    $this->baseUrl = $baseUrl;
+                }
+
+                public function __invoke($requestUri = null)
+                {
+                    // Use error_log for debugging (uses standard Omeka S base_url)
+                    error_log("CUSTOM_SERVERURL: Called with requestUri='$requestUri', returning '{$this->baseUrl}'");
+
+                    if ($requestUri === null) {
+                        return $this->baseUrl;
+                    }
+
+                    return $this->baseUrl . $requestUri;
+                }
+            };
+
+            $reflection = new \ReflectionClass($viewHelperManager);
+            $servicesProperty = $reflection->getProperty('services');
+            $servicesProperty->setAccessible(true);
+            $services = $servicesProperty->getValue($viewHelperManager);
+            $services['serverUrl'] = $forceServerUrl;
+            $servicesProperty->setValue($viewHelperManager, $services);
+
+            $this->trace("ServerUrl override applied successfully");
+
+        } catch (Exception $ex) {
+            $this->trace("ERROR in ServerUrl override: " . $ex->getMessage());
         }
 
-        $services = $this->getServiceLocator();
-        $t = $services->get('MvcTranslator');
-        $config = $this->getServiceLocator()->get('Config');
-        $basePath = $config['file_store']['local']['base_path'] ?: (OMEKA_PATH . '/files');
+        // 2. File Store - Use standard Omeka S configuration (no override needed)
+        $this->trace("Using standard Omeka S file store configuration from local.config.php");
 
-        $html = '<p>';
-        $html .= '<strong>';
-        $html .= $t->translate('WARNING:'); // @translate
-        $html .= '</strong>';
-        $html .= '</p>';
+        // 3. CRITICAL FIX: Override file renderer registration
+        $this->trace("Registering custom file renderers...");
+        try {
+            $settings = $serviceManager->get('Omeka\Settings');
+            $customRenderersEnabled = $settings->get('derivativemedia_enable_custom_file_renderers', true);
 
-        $html .= '<p>';
-        // TODO Remove all files one by one, because the base path of files may have been changed.
-        $html .= new PsrMessage(
-            'All derivative files will be kept in the folders specified in the config inside {path}.', // @translate
-            ['path' => $basePath]
-        );
-        $html .= '</p>';
+            if ($customRenderersEnabled) {
+                $fileRendererManager = $serviceManager->get('Omeka\Media\FileRenderer\Manager');
 
-        echo $html;
+                // Force registration of our custom renderers
+                $fileRendererManager->setService('video', new \DerivativeMedia\Media\FileRenderer\VideoRenderer());
+                $fileRendererManager->setService('audio', new \DerivativeMedia\Media\FileRenderer\AudioRenderer());
+
+                // Override aliases to point to our custom renderers
+                $fileRendererManager->setAlias('video/mp4', 'video');
+                $fileRendererManager->setAlias('video/quicktime', 'video');
+                $fileRendererManager->setAlias('video/x-msvideo', 'video');
+                $fileRendererManager->setAlias('video/ogg', 'video');
+                $fileRendererManager->setAlias('video/webm', 'video');
+                $fileRendererManager->setAlias('application/ogg', 'video');
+
+                $fileRendererManager->setAlias('audio/ogg', 'audio');
+                $fileRendererManager->setAlias('audio/x-aac', 'audio');
+                $fileRendererManager->setAlias('audio/mpeg', 'audio');
+                $fileRendererManager->setAlias('audio/mp4', 'audio');
+                $fileRendererManager->setAlias('audio/x-wav', 'audio');
+                $fileRendererManager->setAlias('audio/x-aiff', 'audio');
+                $fileRendererManager->setAlias('mp3', 'audio');
+
+                $this->trace("Custom file renderers registered successfully");
+            } else {
+                $this->trace("Custom file renderers disabled by setting");
+            }
+
+        } catch (Exception $e) {
+            $this->trace("ERROR registering custom file renderers: " . $e->getMessage());
+        }
+
+        // 4. Test both fixes
+        $this->trace("Testing comprehensive fixes...");
+        try {
+            // Test ServerUrl
+            $viewHelperManager = $serviceManager->get('ViewHelperManager');
+            $serverUrlHelper = $viewHelperManager->get('serverUrl');
+            $serverUrlResult = $serverUrlHelper();
+            $this->trace("ServerUrl test result: '$serverUrlResult'");
+
+            // Test File Store
+            $fileStore = $serviceManager->get('Omeka\File\Store');
+            $this->trace("File store class: " . get_class($fileStore));
+
+            $testUri = $fileStore->getUri('test/path');
+            $this->trace("File store test URI: '$testUri'");
+
+            // Test media URL generation
+            $api = $serviceManager->get('Omeka\ApiManager');
+            $mediaRep = $api->read('media', 349)->getContent();
+            $originalUrl = $mediaRep->originalUrl();
+            $this->trace("Media 349 originalUrl after comprehensive fixes: '$originalUrl'");
+
+            // Get expected base URL from standard Omeka S configuration
+            $config = $serviceManager->get('Config');
+            $expectedBaseUrl = $config['base_url'] ?? null;
+
+            if (!$expectedBaseUrl) {
+                $this->trace("WARNING: base_url not configured in local.config.php for testing");
+                // Auto-detect from server variables as fallback
+                $scheme = $_SERVER['REQUEST_SCHEME'] ?? 'http';
+                $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+                $expectedBaseUrl = "$scheme://$host/omeka-s";
+            }
+
+            if (strpos($originalUrl, $expectedBaseUrl) === 0) {
+                $this->trace("SUCCESS: Comprehensive fixes working - Media URL has correct hostname!");
+            } else {
+                $this->trace("ERROR: Comprehensive fixes failed - Media URL has wrong hostname. Expected: $expectedBaseUrl, Got: $originalUrl");
+            }
+
+        } catch (Exception $ex) {
+            $this->trace("ERROR testing comprehensive fixes: " . $ex->getMessage());
+        }
+
+        // Call parent attachListeners
+        $sharedEventManager = $serviceManager->get('SharedEventManager');
+        $this->attachListeners($sharedEventManager);
+
+        $this->trace("=== Comprehensive fixes onBootstrap() completed ===");
     }
 
-    public function attachListeners(SharedEventManagerInterface $sharedEventManager): void
+    public function attachListeners(SharedEventManagerInterface $sharedEventManager)
     {
-        // Note: When an item is saved manually, no event is triggered for media.
+        $this->trace("attachListeners() called - DEVELOPMENT VERSION WITH ALL FIXES");
+
+        // CRITICAL: Video thumbnail generation event listeners
         $sharedEventManager->attach(
-            \Omeka\Api\Adapter\ItemAdapter::class,
+            'Omeka\Api\Adapter\MediaAdapter',
             'api.create.post',
-            [$this, 'afterSaveItem']
+            [$this, 'handleVideoThumbnailGeneration']
         );
+
         $sharedEventManager->attach(
-            \Omeka\Api\Adapter\ItemAdapter::class,
+            'Omeka\Api\Adapter\MediaAdapter',
             'api.update.post',
-            [$this, 'afterSaveItem']
+            [$this, 'handleVideoThumbnailGeneration']
         );
 
-        // TODO "api.create.post" seems never to occur for media. Remove event?
+        // Optional: Page display events
         $sharedEventManager->attach(
-            \Omeka\Api\Adapter\MediaAdapter::class,
-            'api.create.post',
-            [$this, 'afterSaveMedia']
+            'Omeka\Controller\Site\Page',
+            'view.show.after',
+            [$this, 'handleVideoThumbnailDisplay']
         );
 
-        $sharedEventManager->attach(
-            \Omeka\Entity\Media::class,
-            'entity.remove.post',
-            [$this, 'afterDeleteMedia'],
-            // Before the deletion of the media via the core method.
-            10
-        );
+        $this->trace("Comprehensive fixes event listeners attached (including video thumbnail generation)");
+    }
 
-        $sharedEventManager->attach(
-            'Omeka\Controller\Admin\Item',
-            'view.details',
-            [$this, 'handleViewShowAfterAdmin']
-        );
-        $sharedEventManager->attach(
-            'Omeka\Controller\Admin\Item',
-            'view.show.sidebar',
-            [$this, 'handleViewShowAfterAdmin']
-        );
-        $sharedEventManager->attach(
-            'Omeka\Controller\Admin\Media',
-            'view.details',
-            [$this, 'handleViewShowAfterAdmin']
-        );
-        $sharedEventManager->attach(
-            'Omeka\Controller\Admin\Media',
-            'view.show.sidebar',
-            [$this, 'handleViewShowAfterAdmin']
-        );
+    /**
+     * Handle video thumbnail generation when media is created or updated
+     */
+    public function handleVideoThumbnailGeneration($event)
+    {
+        $this->trace("handleVideoThumbnailGeneration() called");
 
-        $sharedEventManager->attach(
-            \Omeka\Form\SettingForm::class,
-            'form.add_elements',
-            [$this, 'handleMainSettings']
-        );
+        try {
+            $media = $event->getParam('response')->getContent();
 
-        // Display a warn before uninstalling.
-        $sharedEventManager->attach(
-            'Omeka\Controller\Admin\Module',
-            'view.details',
-            [$this, 'warnUninstall']
-        );
+            // Only process video files
+            if (strpos($media->getMediaType(), 'video/') === 0) {
+                $this->trace("Video media detected - ID: " . $media->getId() . ", Type: " . $media->getMediaType());
+
+                // Get service manager
+                $services = $this->getServiceLocator();
+                if (!$services) {
+                    // Try to get from event
+                    $services = $event->getTarget()->getServiceLocator();
+                }
+
+                if ($services && $services->has('DerivativeMedia\Service\VideoThumbnailService')) {
+                    $videoThumbnailService = $services->get('DerivativeMedia\Service\VideoThumbnailService');
+
+                    // Get thumbnail percentage from settings
+                    $settings = $services->get('Omeka\Settings');
+                    $percentage = (int) $settings->get('derivativemedia_video_thumbnail_percentage', 25);
+
+                    $this->trace("Generating video thumbnail for media " . $media->getId() . " at {$percentage}% position");
+
+                    // Generate the thumbnail
+                    $success = $videoThumbnailService->generateThumbnail($media, $percentage);
+
+                    if ($success) {
+                        $this->trace("Video thumbnail generated successfully for media " . $media->getId());
+                    } else {
+                        $this->trace("Video thumbnail generation failed for media " . $media->getId());
+                    }
+                } else {
+                    $this->trace("VideoThumbnailService not available");
+                }
+            } else {
+                $this->trace("Non-video media detected - ID: " . $media->getId() . ", Type: " . $media->getMediaType());
+            }
+
+        } catch (Exception $e) {
+            $this->trace("ERROR in handleVideoThumbnailGeneration: " . $e->getMessage());
+        }
+    }
+
+    public function handleVideoThumbnailDisplay(Event $event)
+    {
+        $this->trace("handleVideoThumbnailDisplay() called - DEVELOPMENT VERSION");
+    }
+
+    public function install(ServiceLocatorInterface $serviceLocator)
+    {
+        $this->trace("install() called");
+    }
+
+    public function uninstall(ServiceLocatorInterface $serviceLocator)
+    {
+        $this->trace("uninstall() called");
+    }
+
+    public function upgrade($oldVersion, $newVersion, ServiceLocatorInterface $serviceLocator)
+    {
+        $this->trace("upgrade() called from $oldVersion to $newVersion");
     }
 
     public function getConfigForm(PhpRenderer $renderer)
     {
-        $services = $this->getServiceLocator();
+        $this->trace("getConfigForm() called");
 
-        $urlPlugin = $services->get('ControllerPluginManager')->get('url');
-        $messenger = $services->get('ControllerPluginManager')->get('messenger');
-        $message = new \Omeka\Stdlib\Message(
-            'This page allows to launch background job to prepare static derivative files according to parameters set in %1$smain settings%2$s.', // @translate
-            sprintf('<a href="%s">', htmlspecialchars($urlPlugin->fromRoute('admin/default', ['controller' => 'setting'])) . '#derivativemedia_enable'),
-            '</a>'
-        );
-        $message->setEscapeHtml(false);
-        $messenger->addSuccess($message);
+        try {
+            // Use proper dependency injection through service locator
+            $services = $this->getServiceLocator();
 
-        $this->checkFfmpeg(true);
-        $this->checkGhostscript(true);
+            $config = $services->get('Config');
+            $settings = $services->get('Omeka\Settings');
+            $form = $services->get('FormElementManager')->get('DerivativeMedia\Form\ConfigForm');
 
-        $form = $services->get('FormElementManager')->get(ConfigForm::class);
-        $form->init();
+            $this->trace("Services obtained successfully");
 
-        return $renderer->formCollection($form);
+            $data = [];
+            $defaultSettings = $config['derivativemedia']['settings'];
+            foreach ($defaultSettings as $name => $value) {
+                $data[$name] = $settings->get($name, $value);
+            }
+
+            $this->trace("Data prepared, initializing form...");
+
+            $form->init();
+            $form->setData($data);
+            $html = $renderer->formCollection($form);
+
+            $this->trace("getConfigForm() completed successfully, HTML length: " . strlen($html));
+
+            return $html;
+
+        } catch (Exception $e) {
+            $this->trace("ERROR in getConfigForm(): " . $e->getMessage());
+            $this->trace("Stack trace: " . $e->getTraceAsString());
+            return '';
+        }
     }
 
     public function handleConfigForm(AbstractController $controller)
     {
-        if (!$this->handleConfigFormAuto($controller)) {
-            return false;
-        }
+        $this->trace("handleConfigForm() called");
 
-        $params = $controller->getRequest()->getPost();
-
-        // TODO Check why data are empty.
-        $params = $params->toArray();
-
-        if (empty($params['process_derivative_items'])
-            && empty($params['process_metadata_items'])
-            && empty($params['process_derivative_media'])
-            && empty($params['process_metadata_media'])
-        ) {
-            $message = 'No job launched.'; // @translate
-            $controller->messenger()->addWarning($message);
-            return true;
-        }
-
-        $services = $this->getServiceLocator();
-        $settings = $services->get('Omeka\Settings');
-
-        $derivativeEnabled = $settings->get('derivativemedia_enable', []);
-
-        if (in_array('audio', $derivativeEnabled) || in_array('video', $derivativeEnabled)) {
-            $hasFfmpeg = $this->checkFfmpeg(false);
-            if (!$hasFfmpeg) {
-                $message = 'The command "ffmpeg" should be available on the server to convert audio or video.'; // @translate
-                $controller->messenger()->addWarning($message);
-                return true;
-            }
-        }
-
-        if (in_array('pdf', $derivativeEnabled) || in_array('pdf_media', $derivativeEnabled)) {
-            $hasGhostscript = $this->checkGhostscript(false);
-            if (!$hasGhostscript) {
-                $message = 'The command "gs" (ghostscript) should be available on the server to convert pdf.'; // @translate
-                $controller->messenger()->addWarning($message);
-                return true;
-            }
-        }
-
-        $dispatcher = $services->get(\Omeka\Job\Dispatcher::class);
-        $urlPlugin = $services->get('ControllerPluginManager')->get('url');
-
-        if (!empty($params['process_derivative_items'])) {
-            $query = [];
-            parse_str($params['query'] ?? '', $query);
-            $args = [
-                'query' => $query,
-            ];
-            $job = $dispatcher->dispatch(\DerivativeMedia\Job\CreateDerivatives::class, $args);
-            $message = 'Creating derivative media by items ({link_url}job #{job_id}{link_end}, {link_log}logs{link_end})'; // @translate
-        } elseif (!empty($params['process_derivative_media'])) {
-            $queryItems = [];
-            parse_str($params['query_items'] ?? '', $queryItems);
-            $args = [
-                'query_items' => $queryItems,
-                'item_sets' => $params['item_sets'] ?? [],
-                'ingesters' => $params['ingesters'] ?? [],
-                'renderers' => $params['renderers'] ?? [],
-                'media_types' => $params['media_types'] ?? [],
-                'media_ids' => $params['media_ids'] ?? '',
-            ];
-            $job = $dispatcher->dispatch(\DerivativeMedia\Job\DerivativeMediaFile::class, $args);
-            $message = 'Creating derivative media ({link_url}job #{job_id}{link_end}, {link_log}logs{link_end})'; // @translate
-        } elseif (!empty($params['process_metadata_media'])) {
-            $queryItems = [];
-            parse_str($params['query_items'] ?? '', $queryItems);
-            $args = [
-                'query_items' => $queryItems,
-                'item_sets' => $params['item_sets'] ?? [],
-                'ingesters' => $params['ingesters'] ?? [],
-                'renderers' => $params['renderers'] ?? [],
-                'media_types' => $params['media_types'] ?? [],
-                'media_ids' => $params['media_ids'] ?? '',
-            ];
-            $job = $dispatcher->dispatch(\DerivativeMedia\Job\DerivativeMediaMetadata::class, $args);
-            $message = 'Storing metadata for existing files ({link}job #{job_id}{link_end}, {link_log}logs{link_end})'; // @translate
-        }
-
-        $message = new PsrMessage(
-            $message,
-            [
-                'link_url' => sprintf('<a href="%s">',
-                    htmlspecialchars($urlPlugin->fromRoute('admin/id', ['controller' => 'job', 'id' => $job->getId()]))
-                ),
-                'job_id' => $job->getId(),
-                'link_end' => '</a>',
-                'link_log' => sprintf('<a href="%1$s">', $this->isModuleActive('Log')
-                    ? $urlPlugin->fromRoute('admin/default', ['controller' => 'log'], ['query' => ['job_id' => $job->getId()]])
-                    : $urlPlugin->fromRoute('admin/id', ['controller' => 'job', 'action' => 'log', 'id' => $job->getId()])),
-            ]
-        );
-        $message->setEscapeHtml(false);
-        $controller->messenger()->addSuccess($message);
-
-        return true;
-    }
-
-    public function handleViewShowAfterAdmin(Event $event): void
-    {
-        $view = $event->getTarget();
-        /** @var \Omeka\Api\Representation\AbstractResourceEntityRepresentation $resource */
-        $resource = $view->resource;
-        // Quick skip for media.
-        $isMedia = $resource instanceof \Omeka\Api\Representation\MediaRepresentation;
-        if ($isMedia) {
-            $data = $resource->mediaData();
-            if (empty($data) || empty($data['derivative'])) {
-                return;
-            }
-        }
-
-        /** @see \DerivativeMedia\View\Helper\Derivatives */
-        $html = $view->derivatives($resource, [
-            'heading' => $view->translate('Derivative files'), // @translate
-            'class' => 'meta-group',
-            'warn' => true,
-        ]);
-
-        if (!$html) {
-            return;
-        }
-
-        echo <<<'HTML'
-<style>
-@media screen {
-    .browse .derivative-medias h4 {
-        display: inline-block;
-    }
-    .browse .derivative-medias ul {
-        display: inline-block;
-        padding-left: 6px;
-    }
-    .browse .sidebar .derivative-medias ul,
-    .show .derivative-medias ul {
-        padding-left: 0;
-    }
-    .derivative-medias ul li {
-        list-style: none;
-        display: inline-block;
-    }
-    .derivative-medias ul li:not(:last-child):after {
-        content: ' · ';
-    }
-}
-</style>
-HTML;
-
-        echo $html;
-    }
-
-    public function afterSaveItem(Event $event): void
-    {
-        // Don't run during a batch edit of items, because it runs one job by
-        // item and it is slow. A batch process is always partial.
-        /** @var \Omeka\Api\Request $request */
-        $request = $event->getParam('request');
-        if ($request->getOption('isPartial')) {
-            return;
-        }
-
-        $services = $this->getServiceLocator();
-        $settings = $services->get('Omeka\Settings');
-
-        $enabled = $settings->get('derivativemedia_enable', []);
-        $derivativeUpdate = $settings->get('derivativemedia_update', 'existing');
-
-        $mediaLevel = ['audio', 'video', 'pdf_media'];
-
-        $processUpdate = in_array($derivativeUpdate, ['existing_live', 'existing', 'all_live', 'all']);
-        $processItemDerivative = (bool) array_diff($enabled, $mediaLevel);
-        $processMediaAudioVideo = (bool) array_intersect(['audio', 'video'], $enabled);
-        $processMediaPdf = in_array('pdf_media', $mediaLevel);
-        $processMediaDerivative = $processMediaAudioVideo || $processMediaPdf;
-
-        $processItem = $processItemDerivative && $processUpdate;
-        $processMedia = $processMediaDerivative
-            && (
-                ($processMediaAudioVideo && $this->checkFfmpeg())
-                || ($processMediaPdf && $this->checkGhostscript())
-            );
-
-        if (!$processItem && !$processMedia) {
-            return;
-        }
-
-        /** @var \Omeka\Entity\Item $item */
-        $item = $event->getParam('response')->getContent();
-
-        $medias = $item->getMedia();
-        if (!count($medias)) {
-            return;
-        }
-
-        // Check new media without audio/video derivative.
-        if ($processMedia) {
-            $convert = false;
-            foreach ($medias as $media) {
-                // Don't reprocess derivative.
-                $data = $media->getData();
-                if (!empty($data['derivative'])) {
-                    continue;
-                }
-                if ($this->checkConvertAudioVideo($media)) {
-                    $convert = true;
-                    break;
-                }
-            }
-            if ($convert) {
-                $args = [
-                    'item_id' => $item->getId(),
-                ];
-                $dispatcher = $services->get('Omeka\Job\Dispatcher');
-                $dispatcher->dispatch(\DerivativeMedia\Job\DerivativeItem::class, $args);
-            }
-        }
-
-        if ($processItem) {
-            $this->processDerivativeItem($item, $derivativeUpdate);
-        }
-    }
-
-    public function afterSaveMedia(Event $event): void
-    {
-        // Don't run during a batch edit of items, because it runs one job by
-        // item and it is slow. A batch process is always partial.
-        /** @var \Omeka\Api\Request $request */
-        $request = $event->getParam('request');
-        if ($request->getOption('isPartial')) {
-            return;
-        }
-
-        $services = $this->getServiceLocator();
-        $settings = $services->get('Omeka\Settings');
-
-        $enabled = $settings->get('derivativemedia_enable', []);
-        $derivativeUpdate = $settings->get('derivativemedia_update', 'existing');
-
-        $mediaLevel = ['audio', 'video', 'pdf_media'];
-
-        $processUpdate = in_array($derivativeUpdate, ['existing_live', 'existing', 'all_live', 'all']);
-        $processItemDerivative = (bool) array_diff($enabled, $mediaLevel);
-        $processMediaAudioVideo = (bool) array_intersect(['audio', 'video'], $enabled);
-        $processMediaPdf = in_array('pdf_media', $mediaLevel);
-        $processMediaDerivative = $processMediaAudioVideo || $processMediaPdf;
-
-        $processItem = $processItemDerivative && $processUpdate;
-        $processMedia = $processMediaDerivative
-            && (
-                ($processMediaAudioVideo && $this->checkFfmpeg())
-                || ($processMediaPdf && $this->checkGhostscript())
-            );
-
-        if (!$processItem && !$processMedia) {
-            return;
-        }
-
-        /** @var \Omeka\Entity\Media $media */
-        $media = $event->getParam('response')->getContent();
-
-        $dispatcher = $services->get('Omeka\Job\Dispatcher');
-
-        // Check new media without audio/video derivative.
-        if ($processMedia) {
-            // Don't reprocess derivative.
-            $data = $media->getData();
-            if (empty($data['derivative']) && $this->checkConvertAudioVideo($media)) {
-                $args = [
-                    'media_id' => $media->getId(),
-                ];
-                $dispatcher->dispatch(\DerivativeMedia\Job\DerivativeMedia::class, $args);
-            }
-        }
-
-        // FIXME Find a way not to process item for each update of a media, but one time for all. The same for deletion.
-        if ($processItem) {
-            // $this->processDerivativeItem($media->getItem(), $derivativeUpdate);
-        }
-    }
-
-    public function afterDeleteMedia(Event $event): void
-    {
-        /** @var \Omeka\Entity\Media $media */
-        $media = $event->getTarget();
-        if (!$this->isManaged($media)) {
-            return;
-        }
-
-        $data = $media->getData();
-        if (empty($data['derivative'])) {
-            return;
-        }
-
-        $services = $this->getServiceLocator();
-
-        /** @var \Omeka\File\Store\StoreInterface $store */
-        $store = $services->get('Omeka\File\Store');
-        foreach ($data['derivative'] as $folder => $derivative) {
-            $storagePath = $folder . '/' . $derivative['filename'];
-            $store->delete($storagePath);
-        }
-
-        // TODO See update media.
-    }
-
-    protected function processDerivativeItem(\Omeka\Entity\Item $item, string $derivativeUpdate): void
-    {
-        // Quick check item level and list types to process.
-        $services = $this->getServiceLocator();
-
-        /**
-         * @var \Omeka\Api\Adapter\ItemAdapter $adapter
-         * @var \DerivativeMedia\View\Helper\DerivativeList $derivativeList
-         */
-        $adapter = $services->get('Omeka\ApiAdapterManager')->get('items');
-        $derivativeList = $services->get('ViewHelperManager')->get('derivativeList');
-
-        /** @var \Omeka\Api\Representation\ItemRepresentation $item */
-        $item = $adapter->getRepresentation($item);
-
-        // hasDerivative() checks for "dynamic_live", so no need to check here.
-        $derivatives = $derivativeList($item);
-
-        switch ($derivativeUpdate) {
-            case 'existing_live':
-                $todo = array_filter($derivatives, function ($v) {
-                    return $v['ready']
-                        && $v['mode'] === 'live';
-                });
-                break;
-            case 'existing':
-                $todo = array_filter($derivatives, function ($v) {
-                    return $v['ready'];
-                });
-                break;
-            case 'all_live':
-                $todo = array_filter($derivatives, function ($v) {
-                    return $v['mode'] === 'live';
-                });
-                break;
-            case 'all':
-                $todo = $derivatives;
-                break;
-            default:
-                return;
-        }
-
-        if (!$todo) {
-            return;
-        }
-
-        $args = [
-            'item_id' => $item->id(),
-            'type' => array_keys($todo),
-        ];
-        $dispatcher = $services->get('Omeka\Job\Dispatcher');
-        $dispatcher->dispatch(\DerivativeMedia\Job\CreateDerivatives::class, $args);
-    }
-
-    protected function checkConvertAudioVideo(Media $media): bool
-    {
-        static $hasLocalStore;
-        static $convertersAudio;
-        static $convertersVideo;
-        static $convertersPdf;
-
-        if (is_null($hasLocalStore)) {
+        try {
+            // Use proper dependency injection through service locator
             $services = $this->getServiceLocator();
-            /** @var \Omeka\File\Store\StoreInterface $store */
-            $store = $services->get('Omeka\File\Store');
-            $hasLocalStore = $store instanceof \Omeka\File\Store\Local;
-            if (!$hasLocalStore) {
-                $services->get('Omeka\Logger')->err(
-                    '[Derivative Media] This module requires a local store currently.' // @translate
-                );
+
+            $config = $services->get('Config');
+            $settings = $services->get('Omeka\Settings');
+            $form = $services->get('FormElementManager')->get('DerivativeMedia\Form\ConfigForm');
+
+            $params = $controller->getRequest()->getPost();
+
+            $form->init();
+            $form->setData($params);
+
+            if (!$form->isValid()) {
+                $controller->messenger()->addErrors($form->getMessages());
+                $this->trace("handleConfigForm() validation failed");
                 return false;
             }
 
-            $removeCommented = function ($v, $k) {
-                return !empty($v) && mb_strlen(trim($k)) && mb_substr(trim($k), 0, 1) !== '#';
-            };
-            $settings = $services->get('Omeka\Settings');
-            $enabled = $settings->get('derivativemedia_enable', []);
-            $convertersAudio = in_array('audio', $enabled)
-                ? array_filter($settings->get('derivativemedia_converters_audio', []), $removeCommented, ARRAY_FILTER_USE_BOTH)
-                : [];
-            $convertersVideo = in_array('video', $enabled)
-                ? array_filter($settings->get('derivativemedia_converters_video', []), $removeCommented, ARRAY_FILTER_USE_BOTH)
-                : [];
-            $convertersPdf = in_array('pdf_media', $enabled)
-                ? array_filter($settings->get('derivativemedia_converters_pdf', []), $removeCommented, ARRAY_FILTER_USE_BOTH)
-                : [];
-        }
+            $defaultSettings = $config['derivativemedia']['settings'];
+            $params = $form->getData();
 
-        if (!$hasLocalStore) {
+            // Save settings first
+            foreach ($params as $name => $value) {
+                if (array_key_exists($name, $defaultSettings)) {
+                    $settings->set($name, $value);
+                    $this->trace("Setting saved: $name = " . var_export($value, true));
+                }
+            }
+
+            // CRITICAL: Check for job dispatch buttons
+            if (isset($params['process_video_thumbnails'])) {
+                $this->trace("Video thumbnail job dispatch requested");
+
+                try {
+                    // Get job dispatcher
+                    $jobDispatcher = $services->get('Omeka\Job\Dispatcher');
+
+                    // Prepare job arguments
+                    $jobArgs = [
+                        'query' => [], // Process all video media
+                        'force_regenerate' => isset($params['force_regenerate_thumbnails']) ? (bool)$params['force_regenerate_thumbnails'] : false,
+                        'percentage' => isset($params['derivativemedia_video_thumbnail_percentage']) ? (int)$params['derivativemedia_video_thumbnail_percentage'] : null,
+                    ];
+
+                    $this->trace("Dispatching GenerateVideoThumbnails job with args: " . json_encode($jobArgs));
+
+                    // Dispatch the job
+                    $job = $jobDispatcher->dispatch('DerivativeMedia\Job\GenerateVideoThumbnails', $jobArgs);
+
+                    if ($job) {
+                        $controller->messenger()->addSuccess('Video thumbnail generation job started successfully. Check the Jobs page for progress.'); // @translate
+                        $this->trace("Job dispatched successfully with ID: " . $job->getId());
+                    } else {
+                        $controller->messenger()->addError('Failed to start video thumbnail generation job.'); // @translate
+                        $this->trace("Job dispatch failed - no job returned");
+                    }
+
+                } catch (Exception $e) {
+                    $controller->messenger()->addError('Error starting video thumbnail generation job: ' . $e->getMessage()); // @translate
+                    $this->trace("Job dispatch error: " . $e->getMessage());
+                }
+            }
+
+            $this->trace("handleConfigForm() completed successfully");
+            return true;
+
+        } catch (Exception $e) {
+            $this->trace("ERROR in handleConfigForm(): " . $e->getMessage());
             return false;
         }
-
-        if (!$convertersAudio && !$convertersVideo) {
-            return false;
-        }
-
-        if (!$this->isManaged($media)) {
-            return false;
-        }
-
-        $mediaType = (string) $media->getMediaType();
-        $mainMediaType = strtok($mediaType, '/');
-        if ($convertersAudio && $mainMediaType === 'audio') {
-            return true;
-        } elseif ($convertersVideo && $mainMediaType === 'video') {
-            return true;
-        } elseif ($convertersPdf && $mediaType === 'application/pdf') {
-            return true;
-        }
-
-        return false;
-    }
-
-    protected function isManaged(Media $media)
-    {
-        $mediaType = $media->getMediaType();
-        return $mediaType
-            && $media->hasOriginal()
-            && $media->getRenderer() === 'file'
-            && (
-                in_array(strtok($mediaType, '/'), ['audio', 'video'])
-                || $mediaType === 'application/pdf'
-            );
-    }
-
-    protected function checkFfmpeg(bool $warnMessage = false): bool
-    {
-        $plugins = $this->getServiceLocator()->get('ControllerPluginManager');
-        $checkFfmpeg = $plugins->get('checkFfmpeg');
-        $checkFfmpeg = $checkFfmpeg();
-        if (!$checkFfmpeg && $warnMessage) {
-            $messenger = $plugins->get('messenger');
-            $message = new \Omeka\Stdlib\Message(
-                'The command-line utility "ffmpeg" should be installed and should be available in the cli path to make audio and video derivatives.' // @translate
-            );
-            $messenger->addWarning($message);
-        }
-        return $checkFfmpeg;
-    }
-
-    protected function checkGhostscript(bool $warnMessage = false): bool
-    {
-        $plugins = $this->getServiceLocator()->get('ControllerPluginManager');
-        $checkGhostcript = $plugins->get('checkGhostscript');
-        $checkGhostcript = $checkGhostcript();
-        if (!$checkGhostcript && $warnMessage) {
-            $messenger = $plugins->get('messenger');
-            $message = new \Omeka\Stdlib\Message(
-                'The command-line utility "gs" (ghoscript) should be installed and should be available in the cli path to make pdf derivatives.' // @translate
-            );
-            $messenger->addWarning($message);
-        }
-        return $checkGhostcript;
     }
 }

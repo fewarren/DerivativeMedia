@@ -32,7 +32,10 @@ class AudioRenderer implements RendererInterface
         $data = $media->mediaData();
         $hasDerivative = isset($data['derivative']) && count($data['derivative']);
         if ($hasDerivative) {
-            $basePath = $view->serverUrl($view->basePath('/files'));
+            // FIXED: Use serverUrl helper directly instead of accessing service locator
+            $serverUrl = $view->serverUrl();
+            $basePath = $serverUrl . '/download/files';
+
             foreach ($data['derivative'] as $folder => $derivative) {
                 $sources .= sprintf($source,
                     $escapeAttr($basePath . '/' . $folder . '/' . $derivative['filename']),
@@ -41,9 +44,11 @@ class AudioRenderer implements RendererInterface
             }
             // Append the original file if wanted.
             if ($view->setting('derivativemedia_append_original_audio', false)) {
+                // FIXED: Use original URL directly - it already has correct hostname
                 $sources .= sprintf($source, $escapeAttr($originalUrl), $media->mediaType());
             }
         } else {
+            // FIXED: Use original URL directly - it already has correct hostname
             $sources .= sprintf($source, $escapeAttr($originalUrl), $media->mediaType());
         }
 

@@ -7,7 +7,8 @@ use Omeka\Api\Representation\MediaRepresentation;
 use Omeka\Media\FileRenderer\RendererInterface;
 
 /**
- * @see \Omeka\Media\FileRenderer\VideoRenderer
+ * Simplified VideoRenderer based on core Omeka VideoRenderer
+ * Uses the same approach but with our URL fixes applied
  */
 class VideoRenderer implements RendererInterface
 {
@@ -20,73 +21,87 @@ class VideoRenderer implements RendererInterface
         MediaRepresentation $media,
         array $options = []
     ) {
+        // RENDERER_TRACE: Log renderer call details
+        error_log("RENDERER_TRACE: VideoRenderer::render() called for media ID: " . $media->id());
+        error_log("RENDERER_TRACE: Media type: " . $media->mediaType());
+        error_log("RENDERER_TRACE: Media filename: " . $media->filename());
+        error_log("RENDERER_TRACE: Options: " . json_encode($options));
+        error_log("RENDERER_TRACE: View class: " . get_class($view));
+
+        // CRITICAL DEBUG: Log that our custom VideoRenderer is being called
+        error_log('DerivativeMedia VideoRenderer: CUSTOM RENDERER CALLED for media ID: ' . $media->id());
+
         $options = array_merge(self::DEFAULT_OPTIONS, $options);
 
-        // Use a format compatible with html5 and xhtml.
-        $escapeAttr = $view->plugin('escapeHtmlAttr');
+        // Check if download prevention is enabled
+        $settings = $view->getHelperPluginManager()->getServiceLocator()->get('Omeka\Settings');
+        $disableDownloads = $settings->get('derivativemedia_disable_video_downloads', false);
 
-        $sources = '';
-        $source = '<source src="%s" type="%s"/>' . "\n";
-        $originalUrl = $media->originalUrl();
+        // Enhanced video renderer with optional download prevention
+        // The URL fixes are already applied by our ServerUrl and File Store overrides
+        $attrs = [];
 
-        $data = $media->mediaData();
-        $hasDerivative = isset($data['derivative']) && count($data['derivative']);
-        if ($hasDerivative) {
-            $basePath = $view->serverUrl($view->basePath('/files'));
-            foreach ($data['derivative'] as $folder => $derivative) {
-                $sources .= sprintf($source,
-                    $escapeAttr($basePath . '/' . $folder . '/' . $derivative['filename']),
-                    empty($derivative['type']) ? '' : $derivative['type']
-                );
-            }
-            // Append the original file if wanted.
-            if ($view->setting('derivativemedia_append_original_video', false)) {
-                $sources .= sprintf($source, $escapeAttr($originalUrl), $media->mediaType());
-            }
-        } else {
-            $sources .= sprintf($source, $escapeAttr($originalUrl), $media->mediaType());
-        }
-
-        $attrs = ' title="' . $escapeAttr($media->displayTitle()) . '"';
+        $attrs[] = sprintf('src="%s"', $view->escapeHtml($media->originalUrl()));
 
         if (isset($options['width'])) {
-            $attrs .= sprintf(' width="%s"', (int) $options['width']);
+            $attrs[] = sprintf('width="%s"', $view->escapeHtml($options['width']));
         }
         if (isset($options['height'])) {
-            $attrs .= sprintf(' height="%s"', (int) $options['height']);
+            $attrs[] = sprintf('height="%s"', $view->escapeHtml($options['height']));
         }
         if (isset($options['poster'])) {
-            $attrs .= sprintf(' poster="%s"', $escapeAttr($options['poster']));
+            $attrs[] = sprintf('poster="%s"', $view->escapeHtml($options['poster']));
         }
-        if (!empty($options['autoplay'])) {
-            $attrs .= ' autoplay="autoplay"';
+        if (isset($options['autoplay']) && $options['autoplay']) {
+            $attrs[] = 'autoplay';
         }
-        if (!empty($options['controls'])) {
-            $attrs .= ' controls="controls"';
+        if (isset($options['controls']) && $options['controls']) {
+            $attrs[] = 'controls';
+
+            // CONFIGURABLE DOWNLOAD PREVENTION: Disable download button in video controls
+            if ($disableDownloads) {
+                $attrs[] = 'controlsList="nodownload"';
+            }
         }
-        if (!empty($options['loop'])) {
-            $attrs .= ' loop="loop"';
+        if (isset($options['loop']) && $options['loop']) {
+            $attrs[] = 'loop';
         }
-        if (!empty($options['muted'])) {
-            $attrs .= ' muted="muted"';
+        if (isset($options['muted']) && $options['muted']) {
+            $attrs[] = 'muted';
         }
         if (isset($options['class']) && $options['class']) {
-            $attrs .= sprintf(' class="%s"', $escapeAttr($options['class']));
+            $attrs[] = sprintf('class="%s"', $view->escapeHtml($options['class']));
         }
         if (isset($options['preload']) && $options['preload']) {
-            $attrs .= sprintf(' preload="%s"', $escapeAttr($options['preload']));
+            $attrs[] = sprintf('preload="%s"', $view->escapeHtml($options['preload']));
         }
 
-        return sprintf('<video%s>
-    %s
-    %s
-</video>',
-            $attrs,
-            $sources,
-            sprintf(
-                $view->translate('Your browser does not support HTML5 video, but you can download it: %s.'), // @translate
-                $view->hyperlink($media->filename(), $originalUrl)
-            )
+        // CONFIGURABLE DOWNLOAD PREVENTION: Additional security attributes
+        if ($disableDownloads) {
+            // Disable right-click context menu
+            $attrs[] = 'oncontextmenu="return false"';
+
+            // Add additional security attributes
+            $attrs[] = 'disablePictureInPicture';
+            $attrs[] = 'disableRemotePlayback';
+        }
+
+        // CONFIGURABLE FALLBACK: Choose between download link or simple message
+        if ($disableDownloads) {
+            // No download link - just compatibility message
+            $fallbackContent = sprintf(
+                '<p style="margin: 10px 0; font-style: italic; color: #666;">%s</p>',
+                $view->escapeHtml($view->translate('Your browser does not support HTML5 video.'))
+            );
+        } else {
+            // Standard fallback with download link
+            $fallbackContent = $view->hyperlink($media->filename(), $media->originalUrl());
+        }
+
+        return sprintf(
+            '<video %s>%s</video>',
+            implode(' ', $attrs),
+            $fallbackContent
         );
     }
 }

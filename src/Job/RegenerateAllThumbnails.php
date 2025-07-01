@@ -9,6 +9,11 @@ use Omeka\Api\Representation\MediaRepresentation;
  */
 class RegenerateAllThumbnails extends AbstractJob
 {
+    /**
+     * Regenerates thumbnails for all media items with original files.
+     *
+     * Iterates through media records, generating thumbnails for each using the configured thumbnailer. Optionally, only media without existing thumbnails are processed unless forced regeneration is specified. Updates the database to reflect new thumbnails and logs progress, successes, and failures throughout the job.
+     */
     public function perform()
     {
         $services = $this->getServiceLocator();

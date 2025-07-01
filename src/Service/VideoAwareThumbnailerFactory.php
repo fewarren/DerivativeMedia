@@ -10,6 +10,16 @@ use Laminas\ServiceManager\Factory\FactoryInterface;
  */
 class VideoAwareThumbnailerFactory implements FactoryInterface
 {
+    /**
+     * Creates and returns a configured instance of VideoAwareThumbnailer.
+     *
+     * Retrieves required services and configuration options from the container, merges module and global settings for thumbnail generation, and instantiates the VideoAwareThumbnailer with these dependencies and options.
+     *
+     * @param ContainerInterface $services The service container.
+     * @param string $requestedName The name of the requested service.
+     * @param array|null $options Optional additional options.
+     * @return VideoAwareThumbnailer The configured VideoAwareThumbnailer instance.
+     */
     public function __invoke(ContainerInterface $services, $requestedName, array $options = null)
     {
         $cli = $services->get('Omeka\Cli');

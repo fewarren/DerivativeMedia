@@ -36,6 +36,9 @@ class VideoThumbnail extends AbstractBlockLayout
      */
     protected $debugManager;
 
+    /**
+     * Initializes the VideoThumbnail block layout with required services for video thumbnail processing, form management, API access, and debugging.
+     */
     public function __construct(
         VideoThumbnailService $videoThumbnailService,
         FormElementManager $formElementManager,
@@ -48,11 +51,24 @@ class VideoThumbnail extends AbstractBlockLayout
         $this->debugManager = $debugManager;
     }
 
+    /**
+     * Returns the display label for the video thumbnail block layout.
+     *
+     * @return string The label "Video Thumbnail".
+     */
     public function getLabel()
     {
         return 'Video Thumbnail'; // @translate
     }
 
+    /**
+     * Validates and sanitizes the 'media' field in the block data by retaining only numeric media IDs.
+     *
+     * Updates the block's data to ensure that the 'media' array contains only valid integer media IDs.
+     *
+     * @param \Omeka\Entity\SitePageBlock $block The block whose data is being hydrated.
+     * @param ErrorStore $errorStore Used for error tracking during hydration.
+     */
     public function onHydrate(\Omeka\Entity\SitePageBlock $block, ErrorStore $errorStore): void
     {
         $data = $block->getData();
@@ -70,6 +86,13 @@ class VideoThumbnail extends AbstractBlockLayout
         }
     }
 
+    /**
+     * Generates and returns the configuration form for the video thumbnail block.
+     *
+     * Initializes the form, populates the video selection dropdown with available video media from the site, and sets form data from the block if provided. Returns the rendered form partial for display in the block editor.
+     *
+     * @return string The rendered HTML form partial for the video thumbnail block.
+     */
     public function form(PhpRenderer $view, SiteRepresentation $site,
         SitePageRepresentation $page = null, SitePageBlockRepresentation $block = null
     ) {
@@ -142,6 +165,13 @@ class VideoThumbnail extends AbstractBlockLayout
         }
     }
 
+    /**
+     * Renders the video thumbnail block using the provided view and block data.
+     *
+     * Passes the block, its data, the current site context, and the video thumbnail service to the view partial for display.
+     *
+     * @return string The rendered HTML for the video thumbnail block.
+     */
     public function render(PhpRenderer $view, SitePageBlockRepresentation $block) {
         // BLOCK_TRACE: Log block rendering attempt
         error_log("BLOCK_TRACE: VideoThumbnail::render() called");
@@ -162,12 +192,13 @@ class VideoThumbnail extends AbstractBlockLayout
     }
 
     /**
-     * Process data from the block form.
-     * CRITICAL METHOD: This method is essential for block data persistence.
-     * Without this method, block data is not properly saved.
+     * Processes and sanitizes form data for the video thumbnail block before saving.
      *
-     * @param array $data The form data
-     * @return array The processed data
+     * Converts and validates the `media_id` and `override_percentage` fields, ensuring correct types and value ranges. Handles legacy support for the `percentage` field, and trims string fields such as `heading` and `template`. Throws an exception if the percentage is out of the 0–100 range.
+     *
+     * @param array $data The submitted form data.
+     * @return array The sanitized and validated block data.
+     * @throws \InvalidArgumentException If the percentage value is outside the allowed range.
      */
     public function handleFormData(array $data)
     {

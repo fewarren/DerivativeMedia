@@ -38,6 +38,8 @@ return [
     'view_helpers' => [
         'invokables' => [
             'derivatives' => View\Helper\Derivatives::class,
+            'fileSize' => View\Helper\FileSize::class,
+            'resourceValues' => View\Helper\ResourceValues::class,
         ],
         'factories' => [
             'derivativeList' => Service\ViewHelper\DerivativeListFactory::class,

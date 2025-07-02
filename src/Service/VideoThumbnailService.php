@@ -209,6 +209,22 @@ class VideoThumbnailService
             // Create thumbnail derivatives manually using the thumbnailer
             $storageId = $media->getStorageId();
 
+            // CRITICAL FIX: Sanitize storage ID to remove null bytes and invalid characters
+            if ($storageId) {
+                // Remove null bytes and other problematic characters
+                $storageId = str_replace(["\0", "\x00"], '', $storageId);
+                $storageId = preg_replace('/[^\w\-\.\/]/', '', $storageId);
+
+                error_log('VideoThumbnailService: Raw storage_id: ' . bin2hex($media->getStorageId()));
+                error_log('VideoThumbnailService: Sanitized storage_id: ' . $storageId);
+
+                if (empty($storageId)) {
+                    throw new \Exception('Storage ID is empty after sanitization');
+                }
+            } else {
+                throw new \Exception('Media has no storage ID');
+            }
+
             // CRITICAL FIX: Use the FULL storage ID to maintain directory structure
             // This ensures thumbnails are created in the correct subdirectory
             $thumbnailStorageId = $storageId;
@@ -289,6 +305,22 @@ class VideoThumbnailService
         }
 
         error_log('VideoThumbnailService: Raw storage ID from media: ' . $storageId);
+        error_log('VideoThumbnailService: Raw storage ID hex: ' . bin2hex($storageId));
+
+        // CRITICAL FIX: Sanitize storage ID to remove null bytes
+        $sanitizedStorageId = str_replace(["\0", "\x00"], '', $storageId);
+        $sanitizedStorageId = preg_replace('/[^\w\-\.\/]/', '', $sanitizedStorageId);
+
+        if (empty($sanitizedStorageId)) {
+            error_log('VideoThumbnailService: ERROR - Storage ID is empty after sanitization');
+            return null;
+        }
+
+        if ($sanitizedStorageId !== $storageId) {
+            error_log('VideoThumbnailService: WARNING - Storage ID sanitized from: ' . bin2hex($storageId) . ' to: ' . $sanitizedStorageId);
+        }
+
+        $storageId = $sanitizedStorageId;
 
         // Check if storage ID already has extension
         if (pathinfo($storageId, PATHINFO_EXTENSION)) {
@@ -315,12 +347,25 @@ class VideoThumbnailService
     {
         error_log('VideoThumbnailService: createThumbnailDerivatives ENTERED with sourcePath: ' . $sourcePath . ', storageId: ' . $storageId);
 
+        // CRITICAL FIX: Additional sanitization of storage ID
+        $sanitizedStorageId = str_replace(["\0", "\x00"], '', $storageId);
+        $sanitizedStorageId = preg_replace('/[^\w\-\.\/]/', '', $sanitizedStorageId);
+
+        if (empty($sanitizedStorageId)) {
+            error_log('VideoThumbnailService: ERROR - Storage ID is empty after sanitization');
+            return false;
+        }
+
+        if ($sanitizedStorageId !== $storageId) {
+            error_log('VideoThumbnailService: WARNING - Storage ID was sanitized from: ' . bin2hex($storageId) . ' to: ' . $sanitizedStorageId);
+        }
+
         try {
             // Create a temporary file object for the source image
             error_log('VideoThumbnailService: Creating temp file object');
             $tempFile = $this->tempFileFactory->build();
             $tempFile->setTempPath($sourcePath);  // sourcePath already has .jpg extension
-            $tempFile->setStorageId($storageId);
+            $tempFile->setStorageId($sanitizedStorageId);
             $tempFile->setSourceName('thumbnail.jpg');
 
             $this->logger->info('Setting up thumbnailer with source file: {path}', [
@@ -352,20 +397,20 @@ class VideoThumbnailService
                 $thumbnailPath = $this->thumbnailer->create($strategy, $constraint, []);
 
                 if ($thumbnailPath && file_exists($thumbnailPath)) {
+
                     // Store the thumbnail in Omeka's file system with correct path structure
-                    $targetPath = $strategy . '/' . $storageId . '.jpg';
-                    $fileContent = file_get_contents($thumbnailPath);
+                    $targetPath = $strategy . '/' . $sanitizedStorageId . '.jpg';
 
-                    if ($fileContent !== false) {
-                        $store = $this->getFileStore();
-                        $store->put($fileContent, $targetPath);
+                    // CRITICAL FIX: Use file path, not file content
+                    // Omeka's put() method expects a source file path, not file content
+                    $store = $this->getFileStore();
+                    $store->put($thumbnailPath, $targetPath);
 
-                        $this->logger->info('Stored {strategy} thumbnail: {path}', [
-                            'strategy' => $strategy,
-                            'path' => $targetPath
-                        ]);
-                        error_log('VideoThumbnailService: Stored thumbnail via file store: ' . $targetPath);
-                    }
+                    $this->logger->info('Stored {strategy} thumbnail: {path}', [
+                        'strategy' => $strategy,
+                        'path' => $targetPath
+                    ]);
+                    error_log('VideoThumbnailService: Stored thumbnail via file store: ' . $targetPath);
 
                     // Clean up the temporary thumbnail
                     unlink($thumbnailPath);
@@ -420,37 +465,116 @@ class VideoThumbnailService
 
                 error_log("VideoThumbnailService: Using temp path: $tempPath");
 
-                // Create ImageMagick command
+                // FIXED: Simplified and more reliable ImageMagick commands
                 if ($type === 'square') {
-                    $command = sprintf(
-                        'convert %s -resize %dx%d^ -gravity center -crop %dx%d+0+0 %s',
+                    // Use step-by-step approach for square thumbnails to avoid command parsing issues
+                    $tempResized = $tempPath . '_resized.jpg';
+
+                    // Step 1: Resize to fit
+                    $resizeCommand = sprintf(
+                        'convert %s -auto-orient -background white +repage -resize %dx%d^ %s',
                         escapeshellarg($sourcePath),
                         $size, $size,
+                        escapeshellarg($tempResized)
+                    );
+
+                    // Step 2: Crop to square
+                    $command = sprintf(
+                        'convert %s -gravity center -crop %dx%d+0+0 +repage %s',
+                        escapeshellarg($tempResized),
                         $size, $size,
                         escapeshellarg($tempPath)
                     );
+
+                    error_log("VideoThumbnailService: Step 1 - Resize command: $resizeCommand");
+                    exec($resizeCommand . ' 2>&1', $resizeOutput, $resizeResult);
+
+                    if ($resizeResult !== 0 || !file_exists($tempResized)) {
+                        error_log("VideoThumbnailService: Step 1 failed: " . implode("\n", $resizeOutput));
+                        // Skip to fallback
+                        $returnVar = 1;
+                    } else {
+                        error_log("VideoThumbnailService: Step 2 - Crop command: $command");
+                        // Continue with crop command below
+                    }
                 } else {
+                    // Simplified command for regular thumbnails
                     $command = sprintf(
-                        'convert %s -resize %dx%d %s',
+                        'convert %s -auto-orient -background white +repage -resize %dx%d> %s',
                         escapeshellarg($sourcePath),
                         $size, $size,
                         escapeshellarg($tempPath)
                     );
                 }
 
-                error_log("VideoThumbnailService: Executing ImageMagick command: $command");
-                exec($command, $output, $returnVar);
-                error_log("VideoThumbnailService: ImageMagick return code: $returnVar");
-                error_log("VideoThumbnailService: Temp file exists after ImageMagick: " . (file_exists($tempPath) ? 'YES' : 'NO'));
+                // Execute the main command (or second step for square)
+                if (!isset($returnVar) || $returnVar === 0) {
+                    error_log("VideoThumbnailService: Executing ImageMagick command: $command");
 
+                    $output = [];
+                    exec($command . ' 2>&1', $output, $returnVar);
+
+                    $outputString = implode("\n", $output);
+                    error_log("VideoThumbnailService: ImageMagick return code: $returnVar");
+                    error_log("VideoThumbnailService: ImageMagick output: $outputString");
+                    error_log("VideoThumbnailService: Temp file exists after ImageMagick: " . (file_exists($tempPath) ? 'YES' : 'NO'));
+
+                    // Clean up temporary resize file for square thumbnails
+                    if ($type === 'square' && isset($tempResized) && file_exists($tempResized)) {
+                        unlink($tempResized);
+                    }
+                }
+
+                // ENHANCED: Multiple fallback strategies if primary fails
                 if ($returnVar !== 0 || !file_exists($tempPath)) {
-                    $this->logger->err('Failed to create {type} thumbnail derivative', [
-                        'type' => $type,
-                        'command' => $command,
-                        'output' => implode("\n", $output)
-                    ]);
-                    error_log("VideoThumbnailService: Failed to create $type derivative: " . implode("\n", $output));
-                    continue;
+                    error_log("VideoThumbnailService: Primary command failed, trying multiple fallbacks for $type");
+
+                    // Fallback 1: Ultra-simple command
+                    $fallback1Command = sprintf(
+                        'convert %s -resize %dx%d> %s',
+                        escapeshellarg($sourcePath),
+                        $size, $size,
+                        escapeshellarg($tempPath)
+                    );
+
+                    $fallback1Output = [];
+                    exec($fallback1Command . ' 2>&1', $fallback1Output, $fallback1Result);
+
+                    if ($fallback1Result === 0 && file_exists($tempPath) && filesize($tempPath) > 0) {
+                        error_log("VideoThumbnailService: Fallback 1 succeeded for $type");
+                        $returnVar = 0; // Mark as successful
+                    } else {
+                        error_log("VideoThumbnailService: Fallback 1 failed for $type, trying fallback 2");
+
+                        // Fallback 2: Force JPEG format
+                        $fallback2Command = sprintf(
+                            'convert jpeg:%s -resize %dx%d> jpeg:%s',
+                            escapeshellarg($sourcePath),
+                            $size, $size,
+                            escapeshellarg($tempPath)
+                        );
+
+                        $fallback2Output = [];
+                        exec($fallback2Command . ' 2>&1', $fallback2Output, $fallback2Result);
+
+                        if ($fallback2Result === 0 && file_exists($tempPath) && filesize($tempPath) > 0) {
+                            error_log("VideoThumbnailService: Fallback 2 (forced JPEG) succeeded for $type");
+                            $returnVar = 0; // Mark as successful
+                        } else {
+                            // All fallbacks failed
+                            $this->logger->err('Failed to create {type} thumbnail derivative with all methods', [
+                                'type' => $type,
+                                'command' => $command,
+                                'output' => $outputString,
+                                'fallback1_command' => $fallback1Command,
+                                'fallback1_output' => implode("\n", $fallback1Output),
+                                'fallback2_command' => $fallback2Command,
+                                'fallback2_output' => implode("\n", $fallback2Output)
+                            ]);
+                            error_log("VideoThumbnailService: All fallbacks failed for $type derivative");
+                            continue;
+                        }
+                    }
                 }
 
                 // Store the derivative in Omeka's file system with correct directory structure

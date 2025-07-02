@@ -206,7 +206,36 @@ class VideoAwareThumbnailer extends ImageMagick
             ));
         }
 
-        error_log('VideoAwareThumbnailer: FFmpeg created thumbnail: ' . $tempPathWithExtension . ' (size: ' . filesize($tempPathWithExtension) . ' bytes)');
+        $thumbnailSize = filesize($tempPathWithExtension);
+        error_log('VideoAwareThumbnailer: FFmpeg created thumbnail: ' . $tempPathWithExtension . ' (size: ' . $thumbnailSize . ' bytes)');
+
+        // ENHANCED: Validate the generated JPEG file
+        if ($thumbnailSize < 100) {
+            throw new \Exception('FFmpeg generated thumbnail is too small (likely corrupted): ' . $thumbnailSize . ' bytes');
+        }
+
+        // Validate JPEG header
+        $handle = fopen($tempPathWithExtension, 'rb');
+        if ($handle) {
+            $header = fread($handle, 4);
+            fclose($handle);
+
+            if (strlen($header) >= 3 && ord($header[0]) === 0xFF && ord($header[1]) === 0xD8 && ord($header[2]) === 0xFF) {
+                error_log('VideoAwareThumbnailer: Generated thumbnail has valid JPEG header');
+            } else {
+                error_log('VideoAwareThumbnailer: WARNING - Generated thumbnail has invalid JPEG header: ' . bin2hex($header));
+                throw new \Exception('FFmpeg generated invalid JPEG file (bad header): ' . bin2hex($header));
+            }
+        }
+
+        // Test with getimagesize
+        $imageInfo = @getimagesize($tempPathWithExtension);
+        if ($imageInfo === false) {
+            error_log('VideoAwareThumbnailer: WARNING - Generated thumbnail failed getimagesize validation');
+            throw new \Exception('FFmpeg generated invalid image file (failed getimagesize)');
+        } else {
+            error_log('VideoAwareThumbnailer: Generated thumbnail validated - Width: ' . $imageInfo[0] . ', Height: ' . $imageInfo[1]);
+        }
 
         // CRITICAL FIX: Copy the thumbnail to the expected path WITHOUT extension
         // Omeka's thumbnail system expects files without extensions in temp paths
@@ -332,32 +361,14 @@ class VideoAwareThumbnailer extends ImageMagick
         $tempFile = $this->tempFileFactory->build();
         $tempPath = $tempFile->getTempPath();
 
-        error_log('VideoAwareThumbnailer: Direct resize from ' . $sourcePath . ' to ' . $tempPath);
-
-        // Build ImageMagick command without [0] frame syntax
-        if ($strategy === 'square') {
-            // Square thumbnail with cropping
-            $size = $constraint;
-            $command = sprintf(
-                'convert %s -auto-orient -background white +repage -alpha remove -resize %dx%d^ -gravity center -crop %dx%d+0+0 %s',
-                escapeshellarg($sourcePath),
-                $size, $size,
-                $size, $size,
-                escapeshellarg($tempPath)
-            );
-        } else {
-            // Default strategy - scale to fit within constraint
-            $command = sprintf(
-                'convert %s -auto-orient -background white +repage -alpha remove -thumbnail %dx%d> %s',
-                escapeshellarg($sourcePath),
-                $constraint, $constraint,
-                escapeshellarg($tempPath)
-            );
+        // CRITICAL FIX: Ensure output file has proper extension
+        if (!pathinfo($tempPath, PATHINFO_EXTENSION)) {
+            $tempPath .= '.jpg';
         }
 
-        error_log('VideoAwareThumbnailer: ImageMagick command: ' . $command);
+        error_log('VideoAwareThumbnailer: Direct resize from ' . $sourcePath . ' to ' . $tempPath);
 
-        // Check source file before running command
+        // COMPREHENSIVE SOURCE FILE VALIDATION
         if (!file_exists($sourcePath)) {
             throw new \Exception('Source file does not exist: ' . $sourcePath);
         }
@@ -369,6 +380,92 @@ class VideoAwareThumbnailer extends ImageMagick
             throw new \Exception('Source file is empty: ' . $sourcePath);
         }
 
+        if ($sourceSize < 100) {
+            throw new \Exception('Source file too small (likely corrupted): ' . $sourceSize . ' bytes');
+        }
+
+        // ENHANCED: Validate JPEG file with multiple methods
+        $imageInfo = @getimagesize($sourcePath);
+        if ($imageInfo === false) {
+            error_log('VideoAwareThumbnailer: getimagesize() failed for: ' . $sourcePath);
+
+            // Try alternative validation with ImageMagick identify
+            $identifyOutput = [];
+            $identifyResult = 0;
+            exec('identify ' . escapeshellarg($sourcePath) . ' 2>&1', $identifyOutput, $identifyResult);
+
+            if ($identifyResult !== 0) {
+                $identifyError = implode("\n", $identifyOutput);
+                error_log('VideoAwareThumbnailer: ImageMagick identify failed: ' . $identifyError);
+                throw new \Exception('Source file is not a valid image (failed both getimagesize and identify): ' . $sourcePath . '. Identify error: ' . $identifyError);
+            } else {
+                error_log('VideoAwareThumbnailer: ImageMagick identify succeeded: ' . implode(", ", $identifyOutput));
+            }
+        } else {
+            error_log('VideoAwareThumbnailer: Source image info - Width: ' . $imageInfo[0] . ', Height: ' . $imageInfo[1] . ', Type: ' . $imageInfo[2] . ', MIME: ' . $imageInfo['mime']);
+        }
+
+        // ENHANCED: Check file permissions
+        if (!is_readable($sourcePath)) {
+            throw new \Exception('Source file is not readable: ' . $sourcePath);
+        }
+
+        // ENHANCED: Validate JPEG header
+        $handle = fopen($sourcePath, 'rb');
+        if ($handle) {
+            $header = fread($handle, 4);
+            fclose($handle);
+
+            // Check for JPEG magic bytes (FF D8 FF)
+            if (strlen($header) >= 3 && ord($header[0]) === 0xFF && ord($header[1]) === 0xD8 && ord($header[2]) === 0xFF) {
+                error_log('VideoAwareThumbnailer: Valid JPEG header detected');
+            } else {
+                error_log('VideoAwareThumbnailer: WARNING - Invalid JPEG header: ' . bin2hex($header));
+                // Continue anyway, might still be processable
+            }
+        }
+
+        // FIXED: Simplified and more reliable ImageMagick commands
+        if ($strategy === 'square') {
+            // Use two-step approach for square thumbnails to avoid command parsing issues
+            $tempResized = $tempPath . '_resized.jpg';
+
+            // Step 1: Resize to fit
+            $resizeCommand = sprintf(
+                'convert %s -auto-orient -background white +repage -resize %dx%d^ %s',
+                escapeshellarg($sourcePath),
+                $constraint, $constraint,
+                escapeshellarg($tempResized)
+            );
+
+            error_log('VideoAwareThumbnailer: Step 1 - Resize command: ' . $resizeCommand);
+            $resizeOutput = [];
+            exec($resizeCommand . ' 2>&1', $resizeOutput, $resizeResult);
+
+            if ($resizeResult !== 0 || !file_exists($tempResized)) {
+                error_log('VideoAwareThumbnailer: Step 1 failed: ' . implode("\n", $resizeOutput));
+                throw new \Exception('Failed to resize image for square thumbnail: ' . implode("\n", $resizeOutput));
+            }
+
+            // Step 2: Crop to square
+            $command = sprintf(
+                'convert %s -gravity center -crop %dx%d+0+0 +repage %s',
+                escapeshellarg($tempResized),
+                $constraint, $constraint,
+                escapeshellarg($tempPath)
+            );
+        } else {
+            // Simplified command for regular thumbnails - remove problematic options
+            $command = sprintf(
+                'convert %s -auto-orient -background white +repage -resize %dx%d> %s',
+                escapeshellarg($sourcePath),
+                $constraint, $constraint,
+                escapeshellarg($tempPath)
+            );
+        }
+
+        error_log('VideoAwareThumbnailer: ImageMagick command: ' . $command);
+
         // Execute ImageMagick command
         $output = [];
         $result = 0;
@@ -378,15 +475,100 @@ class VideoAwareThumbnailer extends ImageMagick
         error_log('VideoAwareThumbnailer: ImageMagick result: ' . $result);
         error_log('VideoAwareThumbnailer: ImageMagick output: ' . $outputString);
 
+        // Clean up temporary resize file for square thumbnails
+        if ($strategy === 'square' && isset($tempResized) && file_exists($tempResized)) {
+            unlink($tempResized);
+        }
+
         // Check if output file was created
         if (file_exists($tempPath)) {
-            error_log('VideoAwareThumbnailer: Output file created, size: ' . filesize($tempPath) . ' bytes');
+            $outputSize = filesize($tempPath);
+            error_log('VideoAwareThumbnailer: Output file created, size: ' . $outputSize . ' bytes');
         } else {
             error_log('VideoAwareThumbnailer: Output file was NOT created');
         }
 
+        // ENHANCED ERROR HANDLING: Multiple fallback strategies
         if (0 !== $result) {
-            throw new \Exception(sprintf('ImageMagick command failed (exit code %d): %s. Output: %s', $result, $command, $outputString));
+            error_log('VideoAwareThumbnailer: Primary command failed, trying multiple fallbacks...');
+
+            // Fallback 1: Ultra-simple convert
+            $fallback1Command = sprintf(
+                'convert %s -resize %dx%d> %s',
+                escapeshellarg($sourcePath),
+                $constraint, $constraint,
+                escapeshellarg($tempPath)
+            );
+
+            $fallback1Output = [];
+            exec($fallback1Command . ' 2>&1', $fallback1Output, $fallback1Result);
+
+            if ($fallback1Result === 0 && file_exists($tempPath) && filesize($tempPath) > 0) {
+                error_log('VideoAwareThumbnailer: Fallback 1 (ultra-simple) succeeded');
+                return $tempPath;
+            }
+
+            error_log('VideoAwareThumbnailer: Fallback 1 failed, trying fallback 2...');
+
+            // Fallback 2: Force JPEG input/output format
+            $fallback2Command = sprintf(
+                'convert jpeg:%s -resize %dx%d> jpeg:%s',
+                escapeshellarg($sourcePath),
+                $constraint, $constraint,
+                escapeshellarg($tempPath)
+            );
+
+            $fallback2Output = [];
+            exec($fallback2Command . ' 2>&1', $fallback2Output, $fallback2Result);
+
+            if ($fallback2Result === 0 && file_exists($tempPath) && filesize($tempPath) > 0) {
+                error_log('VideoAwareThumbnailer: Fallback 2 (forced JPEG) succeeded');
+                return $tempPath;
+            }
+
+            error_log('VideoAwareThumbnailer: Fallback 2 failed, trying fallback 3...');
+
+            // Fallback 3: Use PHP GD as last resort
+            if (extension_loaded('gd')) {
+                try {
+                    $sourceImage = @imagecreatefromjpeg($sourcePath);
+                    if ($sourceImage !== false) {
+                        $sourceWidth = imagesx($sourceImage);
+                        $sourceHeight = imagesy($sourceImage);
+
+                        // Calculate new dimensions
+                        $ratio = min($constraint / $sourceWidth, $constraint / $sourceHeight);
+                        $newWidth = (int)($sourceWidth * $ratio);
+                        $newHeight = (int)($sourceHeight * $ratio);
+
+                        $newImage = imagecreatetruecolor($newWidth, $newHeight);
+                        imagecopyresampled($newImage, $sourceImage, 0, 0, 0, 0, $newWidth, $newHeight, $sourceWidth, $sourceHeight);
+
+                        if (imagejpeg($newImage, $tempPath, 85)) {
+                            error_log('VideoAwareThumbnailer: Fallback 3 (PHP GD) succeeded');
+                            imagedestroy($sourceImage);
+                            imagedestroy($newImage);
+                            return $tempPath;
+                        }
+
+                        imagedestroy($sourceImage);
+                        imagedestroy($newImage);
+                    }
+                } catch (\Exception $gdException) {
+                    error_log('VideoAwareThumbnailer: GD fallback failed: ' . $gdException->getMessage());
+                }
+            }
+
+            // All fallbacks failed
+            $fallback1OutputString = implode("\n", $fallback1Output);
+            $fallback2OutputString = implode("\n", $fallback2Output);
+
+            throw new \Exception(sprintf(
+                'All thumbnail creation methods failed. Primary (exit %d): %s. Output: %s. Fallback1 (exit %d): %s. Output: %s. Fallback2 (exit %d): %s. Output: %s. GD also failed.',
+                $result, $command, $outputString,
+                $fallback1Result, $fallback1Command, $fallback1OutputString,
+                $fallback2Result, $fallback2Command, $fallback2OutputString
+            ));
         }
 
         if (!file_exists($tempPath) || 0 === filesize($tempPath)) {

@@ -23,6 +23,11 @@ class GenerateVideoThumbnails extends AbstractJob
      */
     protected $videoThumbnailService;
 
+    /**
+     * Executes the job to generate video thumbnails in bulk or for a single media item.
+     *
+     * Retrieves job arguments to determine whether to process all video media matching specified criteria or a single media item. For each relevant video media, generates a thumbnail unless one already exists and regeneration is not forced. Tracks and logs the number of processed, successful, failed, and skipped items. Handles exceptions and supports graceful job termination.
+     */
     public function perform(): void
     {
         $services = $this->getServiceLocator();
@@ -144,7 +149,14 @@ class GenerateVideoThumbnails extends AbstractJob
     }
 
     /**
-     * Process a single media item for video thumbnail generation
+     * Generates a video thumbnail for a single media item if it is a video file.
+     *
+     * Attempts to find the specified media entity by ID, verifies it is a video, and generates a thumbnail at the given percentage position. Logs the outcome and handles errors gracefully.
+     *
+     * @param int $mediaId The ID of the media item to process.
+     * @param bool $forceRegenerate Whether to force thumbnail regeneration even if one exists.
+     * @param int|null $percentage The position in the video (as a percentage) to capture the thumbnail, or null to use the default.
+     * @param string $opId The operation ID for logging and tracking.
      */
     protected function processSingleMedia(int $mediaId, bool $forceRegenerate, ?int $percentage, string $opId): void
     {

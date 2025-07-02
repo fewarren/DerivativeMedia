@@ -15,16 +15,33 @@ use DerivativeMedia\Form;
 
 class Module extends AbstractModule
 {
+    /**
+     * Returns the module configuration array.
+     *
+     * @return array The configuration settings loaded from module.config.php.
+     */
     public function getConfig()
     {
         return include __DIR__ . '/config/module.config.php';
     }
 
+    /**
+     * Placeholder for module initialization logic.
+     *
+     * This method is reserved for future initialization steps when the module is loaded.
+     */
     public function init(ModuleManager $moduleManager): void
     {
         // Module initialization if needed
     }
 
+    /**
+     * Handles module bootstrap logic, including ACL rule addition, view helper override, and block layout diagnostics.
+     *
+     * This method ensures necessary access control rules are added, overrides the ServerUrl view helper to address URL generation issues, and logs diagnostic information about block layout registration and configuration. It also logs the activation of the module's clean bootstrap process.
+     *
+     * @param MvcEvent $event The MVC event triggering the bootstrap process.
+     */
     public function onBootstrap(MvcEvent $event): void
     {
         parent::onBootstrap($event);
@@ -64,7 +81,9 @@ class Module extends AbstractModule
     }
 
     /**
-     * Override the ServerUrl helper to fix URL generation issues
+     * Replaces the default ServerUrl view helper with a custom implementation to address URL generation issues.
+     *
+     * @param MvcEvent $event The MVC event containing application context.
      */
     protected function overrideServerUrlHelper(MvcEvent $event): void
     {
@@ -85,13 +104,20 @@ class Module extends AbstractModule
     }
 
     /**
-     * Add ACL rules for this module.
+     * Placeholder for adding Access Control List (ACL) rules specific to the module.
+     *
+     * Extend this method to define custom ACL rules as needed.
      */
     protected function addAclRules(): void
     {
         // Add any ACL rules if needed
     }
 
+    /**
+     * Attaches event listeners for video thumbnail generation on media creation and update events.
+     *
+     * Listeners are registered only for the `api.create.post` and `api.update.post` events of the `MediaAdapter` to trigger video thumbnail processing when relevant.
+     */
     public function attachListeners(SharedEventManagerInterface $sharedEventManager): void
     {
         error_log('DerivativeMedia: attachListeners method called - CLEAN APPROACH');
@@ -116,7 +142,9 @@ class Module extends AbstractModule
     }
 
     /**
-     * Handle video thumbnail generation - clean approach
+     * Triggers video thumbnail generation for media entities of type video.
+     *
+     * If the provided event contains a media entity with a MIME type starting with 'video/', this method attempts to retrieve the VideoThumbnailService and initiate thumbnail generation for that media.
      */
     public function handleVideoThumbnailGeneration($event)
     {
@@ -135,6 +163,12 @@ class Module extends AbstractModule
         }
     }
 
+    /**
+     * Generates and returns the HTML for the module's configuration form populated with current settings.
+     *
+     * @param PhpRenderer $renderer The renderer used to generate the form HTML.
+     * @return string The rendered configuration form HTML.
+     */
     public function getConfigForm(PhpRenderer $renderer)
     {
         $services = $this->getServiceLocator();
@@ -153,6 +187,14 @@ class Module extends AbstractModule
         return $html;
     }
 
+    /**
+     * Handles the module configuration form submission.
+     *
+     * Validates and saves configuration settings from the form. If the user requests video thumbnail generation, dispatches a background job to generate video thumbnails for matching media. Adds success or error messages to the controller messenger based on the outcome.
+     *
+     * @param AbstractController $controller The controller handling the configuration form request.
+     * @return bool True if the form was processed successfully, false if validation failed.
+     */
     public function handleConfigForm(AbstractController $controller)
     {
         $services = $this->getServiceLocator();
@@ -222,11 +264,24 @@ class Module extends AbstractModule
         return true;
     }
 
+    /**
+     * Handles module upgrade logic between versions.
+     *
+     * This method is currently a placeholder and does not perform any actions.
+     *
+     * @param string $oldVersion The previous version of the module.
+     * @param string $newVersion The new version of the module.
+     */
     public function upgrade($oldVersion, $newVersion, ServiceLocatorInterface $serviceLocator): void
     {
         // Handle any upgrade logic if needed
     }
 
+    /**
+     * Performs cleanup tasks when the module is uninstalled.
+     *
+     * Currently, this method does not implement any cleanup logic.
+     */
     public function uninstall(ServiceLocatorInterface $serviceLocator): void
     {
         // Handle any cleanup if needed

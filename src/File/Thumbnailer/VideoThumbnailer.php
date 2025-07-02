@@ -12,6 +12,11 @@ class VideoThumbnailer implements ThumbnailerInterface
      */
     protected $options;
 
+    /**
+     * Initializes the VideoThumbnailer with optional configuration settings.
+     *
+     * @param array $options Optional configuration options such as FFmpeg paths and thumbnail percentage.
+     */
     public function __construct(array $options = [])
     {
         $this->options = $options;
@@ -19,7 +24,14 @@ class VideoThumbnailer implements ThumbnailerInterface
     }
 
     /**
-     * Create thumbnails for video files
+     * Generates video thumbnails at specified sizes using FFmpeg.
+     *
+     * Extracts a frame from the source video at a configurable percentage of its duration and creates thumbnails in various sizes, saving them to the provided destination paths. Optionally records errors in the given error store.
+     *
+     * @param string $sourcePath Path to the source video file.
+     * @param array $destPaths Associative array mapping size names to destination file paths.
+     * @param ErrorStore|null $errorStore Optional error store for recording processing errors.
+     * @return bool True if all thumbnails were created successfully, false otherwise.
      */
     public function createThumbnails($sourcePath, $destPaths, ErrorStore $errorStore = null): bool
     {
@@ -135,7 +147,10 @@ class VideoThumbnailer implements ThumbnailerInterface
     }
 
     /**
-     * Check if this thumbnailer supports the given media type
+     * Determines whether the thumbnailer supports the specified media type.
+     *
+     * @param string $mediaType The media type to check.
+     * @return bool True if the media type is a video, otherwise false.
      */
     public function supports($mediaType): bool
     {
@@ -145,7 +160,10 @@ class VideoThumbnailer implements ThumbnailerInterface
     }
 
     /**
-     * Get dimensions for thumbnail size
+     * Returns the pixel dimension corresponding to a given thumbnail size.
+     *
+     * @param string $size The thumbnail size name ('large', 'medium', 'square', or other).
+     * @return int The pixel dimension for the specified size.
      */
     protected function getDimensionsForSize(string $size): int
     {

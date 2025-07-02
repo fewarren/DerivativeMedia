@@ -14,10 +14,12 @@ use Laminas\View\Helper\ServerUrl as LaminasServerUrl;
 class CustomServerUrl extends LaminasServerUrl
 {
     /**
-     * Generate a server URL
-     * 
-     * @param string|null $requestUri Optional request URI
-     * @return string The server URL
+     * Generates a server URL, using a configured base URL as a fallback if the default generation is malformed.
+     *
+     * If the parent server URL generation returns a malformed URL (e.g., missing domain), attempts to retrieve and use the application's configured `base_url`. Optionally appends the provided request URI to the base URL.
+     *
+     * @param string|null $requestUri An optional request URI to append to the base URL.
+     * @return string The generated server URL.
      */
     public function __invoke($requestUri = null)
     {
@@ -46,10 +48,12 @@ class CustomServerUrl extends LaminasServerUrl
     }
     
     /**
-     * Check if a URL is malformed (missing domain)
-     * 
-     * @param string $url The URL to check
-     * @return bool True if URL is malformed
+     * Determines whether the given URL is malformed due to a missing domain.
+     *
+     * A URL is considered malformed if it is exactly "http://", "https://", or starts with "http:///" or "https:///".
+     *
+     * @param string $url The URL to evaluate.
+     * @return bool True if the URL is malformed; otherwise, false.
      */
     private function isUrlMalformed($url)
     {
@@ -63,9 +67,11 @@ class CustomServerUrl extends LaminasServerUrl
     }
     
     /**
-     * Get the configured base_url from Omeka S configuration
-     * 
-     * @return string|null The configured base URL or null if not found
+     * Retrieves the configured base URL from the Omeka S configuration or settings.
+     *
+     * Attempts to obtain the `base_url` from the main configuration array. If not found, it tries to retrieve it from Omeka settings. Returns `null` if no base URL is configured or if an error occurs during retrieval.
+     *
+     * @return string|null The configured base URL, or null if not available.
      */
     private function getConfiguredBaseUrl()
     {

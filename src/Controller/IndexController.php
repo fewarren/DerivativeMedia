@@ -13,13 +13,11 @@ class IndexController extends \Omeka\Controller\IndexController
     use TraitDerivative;
 
     /**
-     * @todo Manage other storage type. See module Access.
-     * @todo Some formats don't really need storage (text…), so make them truly dynamic.
+     * Handles requests for derivative media files, validating type and availability, and delivers the file or returns an appropriate error response.
      *
-     * @todo Dynamic files cannot be stored in media data because of rights.
+     * Validates the requested derivative type and checks if it is enabled. Ensures the resource is an item and that the derivative file exists and is ready. If not ready, may attempt to create the derivative immediately or dispatch a background job, depending on the derivative mode and settings. Returns JSON error or status messages with relevant HTTP status codes if the derivative is unavailable or cannot be prepared. If the derivative is ready, sends the file as an HTTP response attachment.
      *
-     * {@inheritDoc}
-     * @see \Omeka\Controller\IndexController::indexAction()
+     * @return \Laminas\View\Model\JsonModel|\Laminas\Http\PhpEnvironment\Response Returns a JSON error/status response or the file as an HTTP response.
      */
     public function indexAction()
     {
@@ -142,7 +140,11 @@ class IndexController extends \Omeka\Controller\IndexController
     }
 
     /**
-     * CRITICAL FIX: Handle /download/files/ URLs that VideoRenderer and AudioRenderer expect
+     * Handles file download requests for media files expected by VideoRenderer and AudioRenderer.
+     *
+     * Constructs the file path from URL parameters, verifies file existence and readability, determines the MIME type, and sends the file inline to the client. Returns a 404 response if the file is not found or unreadable.
+     *
+     * @return \Laminas\Http\PhpEnvironment\Response The HTTP response containing the file or a 404 status.
      */
     public function downloadFileAction()
     {
@@ -167,14 +169,16 @@ class IndexController extends \Omeka\Controller\IndexController
     }
 
     /**
-     * This is the 'file' action that is invoked when a user wants to download
-     * the given file.
+     * Sends a file to the client with appropriate HTTP headers, supporting inline or attachment disposition, optional caching, and HTTP range requests for partial content delivery.
      *
-     * @see \Access\Controller\AccessFileController::sendFile()
-     * @see \DerivativeMedia\Controller\IndexController::sendFile()
-     * @see \Statistics\Controller\DownloadController::sendFile()
-     * and
-     * @see \ImageServer\Controller\ImageController::fetchAction()
+     * Handles large files efficiently by clearing output buffers and streaming content, and sets headers for content type, disposition, length, transfer encoding, and caching as needed. Supports partial content delivery for media streaming via HTTP range requests.
+     *
+     * @param string $filepath The absolute path to the file to be sent.
+     * @param string $mediaType The MIME type of the file.
+     * @param string|null $filename Optional filename to use in the Content-Disposition header; defaults to the file's basename.
+     * @param string|null $dispositionMode Whether to send the file 'inline' or as an 'attachment'; defaults to 'inline'.
+     * @param bool|null $cache Whether to enable client-side caching for 30 days; defaults to false.
+     * @return \Laminas\Http\PhpEnvironment\Response The HTTP response object after sending the file.
      */
     protected function sendFile(
         string $filepath,
@@ -285,7 +289,11 @@ class IndexController extends \Omeka\Controller\IndexController
     }
 
     /**
-     * Debug action to display viewer detection information
+     * Returns debugging information about video viewer detection and configuration.
+     *
+     * Provides details on active video viewers, the best viewer selection, and viewer detection debug info. Also includes a sample video media item and its URL strategy if available, along with a timestamp.
+     *
+     * @return \Laminas\View\Model\JsonModel JSON response containing viewer detection debug data.
      */
     public function debugAction()
     {
@@ -324,8 +332,11 @@ class IndexController extends \Omeka\Controller\IndexController
     }
 
     /**
-     * Video player action that respects the preferred viewer setting
-     * This creates a dedicated video player page with only the preferred viewer
+     * Renders a dedicated video player page for a media item using the preferred viewer.
+     *
+     * Retrieves the specified media and site by their identifiers, determines the best available video viewer, and returns a view model for the video player page. Returns a 404 response if the media or site is not found.
+     *
+     * @return \Laminas\View\Model\ViewModel The view model for the video player page.
      */
     public function videoPlayerAction()
     {

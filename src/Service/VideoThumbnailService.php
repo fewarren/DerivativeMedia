@@ -49,6 +49,17 @@ class VideoThumbnailService
      */
     protected $fileStore;
 
+    /**
+     * Initializes the VideoThumbnailService with required dependencies and configuration.
+     *
+     * @param string $ffmpegPath Path to the ffmpeg binary.
+     * @param string $ffprobePath Path to the ffprobe binary.
+     * @param int $thumbnailPercentage Default percentage position in the video to capture the thumbnail.
+     * @param TempFileFactory $tempFileFactory Factory for creating temporary files.
+     * @param ThumbnailerInterface $thumbnailer Service for generating image thumbnails.
+     * @param LoggerInterface $logger Logger for recording service activity.
+     * @param string|null $basePath Optional base path for file storage; defaults to Omeka's files directory if not provided.
+     */
     public function __construct(
         string $ffmpegPath,
         string $ffprobePath,
@@ -67,10 +78,10 @@ class VideoThumbnailService
         $this->basePath = $basePath ?: (OMEKA_PATH . '/files');
     }
 
-    /**
-     * Set the file store
+    /****
+     * Sets the file store instance used for storing generated thumbnails.
      *
-     * @param \Omeka\File\Store\StoreInterface $fileStore
+     * @param \Omeka\File\Store\StoreInterface $fileStore The file store to use for thumbnail storage.
      */
     public function setFileStore($fileStore): void
     {
@@ -78,11 +89,13 @@ class VideoThumbnailService
     }
 
     /**
-     * Generate a thumbnail for a video media
+     * Generates a thumbnail image for a given video media entity.
      *
-     * @param Media $media
-     * @param int $percentage Position percentage for thumbnail capture
-     * @return bool True if thumbnail was generated, false otherwise
+     * Extracts a frame from the video at a specified percentage of its duration using FFmpeg, then creates and stores thumbnail derivatives in multiple sizes. Returns true if the thumbnail and its derivatives are successfully generated and stored; otherwise, returns false.
+     *
+     * @param Media $media The video media entity for which to generate a thumbnail.
+     * @param int|null $percentage Optional. The position in the video (as a percentage of duration) to capture the thumbnail frame. If not provided, the default percentage is used.
+     * @return bool True if the thumbnail and its derivatives were generated successfully, false otherwise.
      */
     public function generateThumbnail(Media $media, int $percentage = null): bool
     {
@@ -269,10 +282,10 @@ class VideoThumbnailService
     }
     
     /**
-     * Get video duration using ffprobe
+     * Retrieves the duration of a video file in seconds using ffprobe.
      *
-     * @param string $videoPath
-     * @return float|null Duration in seconds or null if not determined
+     * @param string $videoPath The full path to the video file.
+     * @return float|null The duration in seconds, or null if the duration cannot be determined.
      */
     protected function getVideoDuration(string $videoPath): ?float
     {
@@ -292,10 +305,12 @@ class VideoThumbnailService
     }
     
     /**
-     * Get the storage path for a media's original file
+     * Returns the full filesystem path to the original file for the given media entity.
      *
-     * @param Media $media
-     * @return string|null
+     * Sanitizes the media's storage ID to remove null bytes and invalid characters, then constructs the path under the base directory's `/original/` subdirectory. If the storage ID lacks a file extension, the extension from the media's filename is appended. Returns `null` if the storage ID is missing or invalid after sanitization.
+     *
+     * @param Media $media The media entity whose original file path is to be determined.
+     * @return string|null The absolute path to the original file, or null if unavailable.
      */
     protected function getStoragePath(Media $media): ?string
     {
@@ -337,11 +352,13 @@ class VideoThumbnailService
     }
 
     /**
-     * Create thumbnail derivatives using Omeka's thumbnailer
+     * Generates and stores multiple thumbnail derivatives (large, medium, square) for a video using Omeka's thumbnailer.
      *
-     * @param string $sourcePath Path to the source thumbnail image
-     * @param string $storageId Storage ID for the media
-     * @return bool True if successful, false otherwise
+     * Attempts to create and save each derivative size in the file store using sanitized storage IDs. Falls back to manual derivative creation if an error occurs.
+     *
+     * @param string $sourcePath Path to the source thumbnail image.
+     * @param string $storageId Storage ID for the media.
+     * @return bool True if all derivatives are created and stored successfully, false otherwise.
      */
     protected function createThumbnailDerivatives(string $sourcePath, string $storageId): bool
     {
@@ -438,11 +455,13 @@ class VideoThumbnailService
     }
 
     /**
-     * Manually create thumbnail derivatives using ImageMagick
+     * Creates thumbnail derivative images (large, medium, square) from a source image using ImageMagick, storing them in the appropriate directory structure.
      *
-     * @param string $sourcePath Path to the source thumbnail image
-     * @param string $storageId Storage ID for the media
-     * @return bool True if successful, false otherwise
+     * Attempts multiple fallback strategies for each derivative if the primary ImageMagick command fails. Returns true if all derivatives are processed without unhandled exceptions; otherwise, returns false.
+     *
+     * @param string $sourcePath Path to the source thumbnail image.
+     * @param string $storageId Storage ID for the media, used to determine output paths.
+     * @return bool True if the process completes without unhandled exceptions, false otherwise.
      */
     protected function createDerivativesManually(string $sourcePath, string $storageId): bool
     {
@@ -651,9 +670,9 @@ class VideoThumbnailService
     }
 
     /**
-     * Get Omeka's file store
+     * Returns the configured file store instance, or a local file store using the base path if none is set.
      *
-     * @return \Omeka\File\Store\StoreInterface
+     * @return \Omeka\File\Store\StoreInterface The file store used for storing and retrieving files.
      */
     protected function getFileStore()
     {
@@ -666,11 +685,13 @@ class VideoThumbnailService
     }
 
     /**
-     * Generate a thumbnail for a video media by ID
+     * Generates a thumbnail for a video media by its ID.
      *
-     * @param int $mediaId
-     * @param int $percentage Position percentage for thumbnail capture
-     * @return bool True if thumbnail was generated, false otherwise
+     * Scans the storage directory for a video file, extracts a frame at a specified percentage of the video's duration using FFmpeg, and creates thumbnail derivatives. Returns true if the process succeeds, or false if any step fails.
+     *
+     * @param int $mediaId The ID of the media for which to generate a thumbnail.
+     * @param int|null $percentage The position percentage in the video to capture the thumbnail frame. If null, the default percentage is used.
+     * @return bool True if the thumbnail and its derivatives were successfully generated, false otherwise.
      */
     public function generateThumbnailById(int $mediaId, int $percentage = null): bool
     {
@@ -797,9 +818,11 @@ class VideoThumbnailService
     }
 
     /**
-     * Check if FFmpeg is available
+     * Determines whether the FFmpeg binary is available and executable.
      *
-     * @return bool
+     * Executes the FFmpeg binary with the `-version` flag and returns true if the command succeeds.
+     *
+     * @return bool True if FFmpeg is available; false otherwise.
      */
     public function isFFmpegAvailable(): bool
     {

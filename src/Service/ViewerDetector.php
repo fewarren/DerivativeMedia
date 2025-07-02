@@ -25,8 +25,8 @@ class ViewerDetector
      */
     private $siteSettings;
 
-    /**
-     * Constructor
+    /****
+     * Initializes the ViewerDetector with module manager, global settings, and site-specific settings services.
      */
     public function __construct(ModuleManager $moduleManager, Settings $settings, SiteSettings $siteSettings)
     {
@@ -36,9 +36,11 @@ class ViewerDetector
     }
 
     /**
-     * Get all active viewer modules and their video capabilities
+     * Returns an array of all active viewer modules with their video capabilities and configuration.
      *
-     * @return array
+     * Each entry includes the module name, support flags for video, media pages, and item pages, relevant settings, priority, and URL strategy. The result is sorted by descending priority.
+     *
+     * @return array Associative array of active viewer modules and their capabilities.
      */
     public function getActiveVideoViewers()
     {
@@ -92,9 +94,11 @@ class ViewerDetector
     }
 
     /**
-     * Get the best viewer for video content
+     * Determines the most suitable active viewer module for video content.
      *
-     * @return array|null
+     * Selects the preferred viewer based on user settings if available and capable; otherwise, returns the highest priority active viewer that supports video. Returns null if no suitable viewer is found.
+     *
+     * @return array|null The selected viewer's configuration array, or null if none are available.
      */
     public function getBestVideoViewer()
     {
@@ -122,11 +126,13 @@ class ViewerDetector
     }
 
     /**
-     * Determine the best URL strategy for video thumbnails
+     * Determines the optimal URL strategy for displaying a video thumbnail based on the best available viewer and its configuration.
      *
-     * @param object $media The media object
-     * @param string $siteSlug The site slug
-     * @return array URL strategy information
+     * Selects a strategy and URL type depending on the active viewer module and its settings, with specific handling for OctopusViewer and UniversalViewer. Returns a default strategy if no suitable viewer is found.
+     *
+     * @param object $media The media object for which the URL strategy is determined.
+     * @param string $siteSlug The slug of the site context.
+     * @return array An associative array containing the strategy, viewer details, and URL type.
      */
     public function getVideoUrlStrategy($media, $siteSlug)
     {
@@ -175,11 +181,11 @@ class ViewerDetector
         ];
     }
 
-    /**
-     * Check if a module is active
+    /****
+     * Determines whether the specified module is currently active.
      *
-     * @param string $moduleId
-     * @return bool
+     * @param string $moduleId The ID of the module to check.
+     * @return bool True if the module exists and is active; otherwise, false.
      */
     private function isModuleActive($moduleId)
     {
@@ -188,13 +194,14 @@ class ViewerDetector
     }
 
     /**
-     * Generate the optimal URL for a video media based on active viewers
-     * CRITICAL FIX: Always use dedicated video player page to respect preferred viewer setting
+     * Generates a URL to the dedicated video player page for the given media and site.
      *
-     * @param object $media The media object
-     * @param string $siteSlug The site slug
-     * @param callable|null $urlHelper Optional URL helper function for proper URL generation
-     * @return string The generated URL
+     * Always constructs the URL manually to ensure the preferred viewer is used and to avoid CleanUrl conflicts.
+     *
+     * @param object $media The media object.
+     * @param string $siteSlug The site slug.
+     * @param callable|null $urlHelper Ignored; present for interface compatibility.
+     * @return string The URL to the video player page for the specified media.
      */
     public function generateVideoUrl($media, $siteSlug, $urlHelper = null)
     {
@@ -206,9 +213,11 @@ class ViewerDetector
     }
 
     /**
-     * Get viewer module information for debugging
+     * Returns debugging information about active viewer modules and related settings.
      *
-     * @return array
+     * The returned array includes lists of active modules, detected video viewer modules with their capabilities, and relevant configuration settings.
+     *
+     * @return array Associative array with keys: 'active_modules', 'viewer_modules', and 'settings'.
      */
     public function getViewerDebugInfo()
     {

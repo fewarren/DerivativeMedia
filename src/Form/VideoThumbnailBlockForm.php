@@ -10,6 +10,11 @@ use Laminas\Validator\Between;
 
 class VideoThumbnailBlockForm extends Form
 {
+    /**
+     * Initializes the video thumbnail block form with fields for media selection, thumbnail position override, heading, and display template.
+     *
+     * Configures form elements and sets up input filtering and validation for each field to ensure proper data entry and sanitation.
+     */
     public function init()
     {
         // Add media selection field

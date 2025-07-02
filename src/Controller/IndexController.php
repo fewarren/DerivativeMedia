@@ -12,14 +12,12 @@ class IndexController extends \Omeka\Controller\IndexController
 {
     use TraitDerivative;
 
-    /**
-     * @todo Manage other storage type. See module Access.
-     * @todo Some formats don't really need storage (text…), so make them truly dynamic.
+    /****
+     * Handles requests for non-media-level derivative files of an item, validating type and availability, and delivers the file if ready.
      *
-     * @todo Dynamic files cannot be stored in media data because of rights.
+     * Returns a JSON error or status message with appropriate HTTP status codes if the request is invalid, the derivative is unavailable, or preparation is required. If the derivative is ready, sends the file as an attachment with correct headers.
      *
-     * {@inheritDoc}
-     * @see \Omeka\Controller\IndexController::indexAction()
+     * @return \Laminas\Http\Response|\Laminas\View\Model\JsonModel The file response or a JSON error/status message.
      */
     public function indexAction()
     {
@@ -142,7 +140,11 @@ class IndexController extends \Omeka\Controller\IndexController
     }
 
     /**
-     * CRITICAL FIX: Handle /download/files/ URLs that VideoRenderer and AudioRenderer expect
+     * Handles file download requests for `/download/files/` URLs, delivering the requested file inline if it exists.
+     *
+     * Returns a 404 response if the file is missing or unreadable.
+     *
+     * @return \Laminas\Http\PhpEnvironment\Response The HTTP response containing the file or a 404 status.
      */
     public function downloadFileAction()
     {
@@ -167,14 +169,16 @@ class IndexController extends \Omeka\Controller\IndexController
     }
 
     /**
-     * This is the 'file' action that is invoked when a user wants to download
-     * the given file.
+     * Sends a file to the client with appropriate HTTP headers, supporting range requests and optional caching.
      *
-     * @see \Access\Controller\AccessFileController::sendFile()
-     * @see \DerivativeMedia\Controller\IndexController::sendFile()
-     * @see \Statistics\Controller\DownloadController::sendFile()
-     * and
-     * @see \ImageServer\Controller\ImageController::fetchAction()
+     * Sets headers for content type, disposition (inline or attachment), content length, transfer encoding, and caching if enabled. Supports HTTP range requests for partial content delivery and clears output buffers before streaming the file. Returns the response object to prevent default view rendering.
+     *
+     * @param string $filepath The absolute path to the file to be sent.
+     * @param string $mediaType The MIME type of the file.
+     * @param string|null $filename Optional filename to use in the Content-Disposition header; defaults to the file's basename.
+     * @param string|null $dispositionMode Content disposition mode, either 'inline' or 'attachment'. Defaults to 'inline'.
+     * @param bool|null $cache Whether to enable client-side caching for 30 days.
+     * @return \Laminas\Http\PhpEnvironment\Response The HTTP response object after sending the file.
      */
     protected function sendFile(
         string $filepath,
@@ -285,7 +289,11 @@ class IndexController extends \Omeka\Controller\IndexController
     }
 
     /**
-     * Debug action to display viewer detection information
+     * Returns JSON debug information about video viewer detection and sample media.
+     *
+     * Provides details on viewer detection, including debug info, active viewers, the best viewer, and a sample video media item with its URL strategy if available.
+     *
+     * @return \Laminas\View\Model\JsonModel JSON response containing viewer detection debug data and sample media information.
      */
     public function debugAction()
     {
@@ -324,8 +332,11 @@ class IndexController extends \Omeka\Controller\IndexController
     }
 
     /**
-     * Video player action that respects the preferred viewer setting
-     * This creates a dedicated video player page with only the preferred viewer
+     * Renders a dedicated video player page using the preferred viewer for a given media and site.
+     *
+     * Retrieves the specified media and site entities by their IDs and slug, respectively. If either is not found, returns a 404 response. Determines the best available video viewer and gathers viewer debug information. Returns a ViewModel configured with the media, site, viewer, and debug data, using the 'derivative-media/video-player' template.
+     *
+     * @return \Laminas\View\Model\ViewModel The configured view model for the video player page.
      */
     public function videoPlayerAction()
     {

@@ -7,6 +7,16 @@ use Interop\Container\ContainerInterface;
 
 class DebugManagerFactory implements FactoryInterface
 {
+    /**
+     * Creates and returns a DebugManager instance configured with application settings and environment variable overrides.
+     *
+     * Retrieves debug-related configuration from the application's settings service, allowing environment variables to override default values for debug enablement, log file name, and base log path.
+     *
+     * @param ContainerInterface $container The service container providing application settings.
+     * @param string $requestedName The name of the requested service.
+     * @param array|null $options Optional additional options (unused).
+     * @return DebugManager The configured DebugManager instance.
+     */
     public function __invoke(ContainerInterface $container, $requestedName, array $options = null)
     {
         $settings = $container->get('Omeka\Settings');

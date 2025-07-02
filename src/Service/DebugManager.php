@@ -34,12 +34,14 @@ class DebugManager
     protected $baseLogPath;
 
     /**
-     * Constructor with configurable options
+     * Initializes the DebugManager with configurable logging options.
      *
-     * @param array $options Configuration options including:
-     *   - log_file: Log file name (default: 'DerivativeMedia_debug.log')
-     *   - debug_enabled: Enable/disable debug logging (default: true)
-     *   - base_log_path: Base directory for logs (default: auto-detected)
+     * Accepts options to set the log file name, enable or disable debug logging, and specify the base directory for logs. If not provided, defaults are used and the log path is auto-detected.
+     *
+     * @param array $options Optional configuration:
+     *   - 'log_file': Name of the log file.
+     *   - 'debug_enabled': Whether debug logging is enabled.
+     *   - 'base_log_path': Directory for storing log files.
      */
     public function __construct(array $options = [])
     {
@@ -57,10 +59,12 @@ class DebugManager
     }
 
     /**
-     * Determine the base log path based on environment and configuration
+     * Determines the base directory path for log files based on configuration and environment.
      *
-     * @param array $options Configuration options
-     * @return string Base log directory path
+     * Checks for an explicitly provided base path, writable Omeka S log directories, or creates a suitable directory in the system temporary folder as a fallback.
+     *
+     * @param array $options Optional configuration options that may specify 'base_log_path'.
+     * @return string The resolved base log directory path.
      */
     protected function determineBaseLogPath(array $options): string
     {
@@ -110,6 +114,11 @@ class DebugManager
         return $tempLogDir;
     }
 
+    /**
+     * Initializes the logger instance and configures it to write to the specified log file.
+     *
+     * Ensures the log directory exists, creating it if necessary. If file-based logging cannot be set up, logs an error message to PHP's error log.
+     */
     protected function initializeLogger(): void
     {
         $this->logger = new Logger();
@@ -129,6 +138,15 @@ class DebugManager
         }
     }
 
+    /**
+     * Logs an informational message if debug logging is enabled.
+     *
+     * The message is tagged with optional component and operation ID context.
+     *
+     * @param string $message The message to log.
+     * @param string $component Optional component identifier for context.
+     * @param string $operationId Optional operation ID for traceability.
+     */
     public function logInfo(string $message, string $component = '', string $operationId = ''): void
     {
         if (!$this->debugEnabled) {
@@ -144,6 +162,15 @@ class DebugManager
         }
     }
 
+    /**
+     * Logs an error message to the configured log file, including optional component and operation ID tags.
+     *
+     * Errors are always logged regardless of debug mode. Falls back to PHP's error_log if file-based logging fails and debug mode is enabled.
+     *
+     * @param string $message The error message to log.
+     * @param string $component Optional component identifier for context.
+     * @param string $operationId Optional operation ID for traceability.
+     */
     public function logError(string $message, string $component = '', string $operationId = ''): void
     {
         // Always log errors regardless of debug mode for critical issues
@@ -160,6 +187,15 @@ class DebugManager
         }
     }
 
+    /**
+     * Logs a warning message if debug logging is enabled.
+     *
+     * The message is tagged with optional component and operation ID information.
+     *
+     * @param string $message The warning message to log.
+     * @param string $component Optional component identifier for context.
+     * @param string $operationId Optional operation ID for traceability.
+     */
     public function logWarning(string $message, string $component = '', string $operationId = ''): void
     {
         if (!$this->debugEnabled) {
@@ -175,6 +211,15 @@ class DebugManager
         }
     }
 
+    /**
+     * Logs a debug-level message if debug logging is enabled.
+     *
+     * The message is tagged with optional component and operation ID information.
+     *
+     * @param string $message The debug message to log.
+     * @param string $component Optional component identifier for context.
+     * @param string $operationId Optional operation ID for traceability.
+     */
     public function logDebug(string $message, string $component = '', string $operationId = ''): void
     {
         if (!$this->debugEnabled) {
@@ -190,6 +235,15 @@ class DebugManager
         }
     }
 
+    /**
+     * Formats a log message with timestamp, log level, optional component and operation ID tags.
+     *
+     * @param string $message The log message content.
+     * @param string $component Optional component identifier to include in the log entry.
+     * @param string $operationId Optional operation ID to include in the log entry.
+     * @param string $level The log level (e.g., 'info', 'error', 'debug').
+     * @return string The formatted log message string.
+     */
     protected function formatMessage(string $message, string $component, string $operationId, string $level): string
     {
         $timestamp = date('Y-m-d H:i:s');
@@ -208,6 +262,12 @@ class DebugManager
         return implode(' ', $parts);
     }
 
+    /**
+     * Logs an informational message when a form factory is invoked, including contextual data.
+     *
+     * @param string $operationId Identifier for the operation or request.
+     * @param array $context Optional contextual information to include in the log.
+     */
     public function traceFormFactory(string $operationId, array $context = []): void
     {
         $this->logInfo(
@@ -217,6 +277,12 @@ class DebugManager
         );
     }
 
+    /**
+     * Logs an informational message about block form rendering, including the block ID if available.
+     *
+     * @param string $operationId Identifier for the current operation or request.
+     * @param mixed $block Optional block object; if provided, its ID is included in the log.
+     */
     public function traceBlockForm(string $operationId, $block = null): void
     {
         $blockInfo = $block ? sprintf('Block ID: %s', $block->id() ?? 'new') : 'New block';
@@ -227,6 +293,13 @@ class DebugManager
         );
     }
 
+    /**
+     * Logs an informational message tracing an API call, including the resource name and parameters.
+     *
+     * @param string $operationId Identifier for the API operation.
+     * @param string $resource The name of the API resource being accessed.
+     * @param array $params Parameters passed to the API call.
+     */
     public function traceApiCall(string $operationId, string $resource, array $params = []): void
     {
         $this->logInfo(
@@ -236,20 +309,30 @@ class DebugManager
         );
     }
 
+    /**
+     * Enables or disables debug logging.
+     *
+     * @param bool $enabled True to enable debug logging, false to disable it.
+     */
     public function setDebugEnabled(bool $enabled): void
     {
         $this->debugEnabled = $enabled;
     }
 
+    /**
+     * Checks whether debug logging is currently enabled.
+     *
+     * @return bool True if debug logging is enabled, false otherwise.
+     */
     public function isDebugEnabled(): bool
     {
         return $this->debugEnabled;
     }
 
     /**
-     * Get the current log file path
+     * Returns the full path to the current log file used for debug logging.
      *
-     * @return string
+     * @return string The absolute path to the log file.
      */
     public function getLogFile(): string
     {
@@ -257,9 +340,9 @@ class DebugManager
     }
 
     /**
-     * Get the base log directory path
+     * Returns the base directory path used for log files.
      *
-     * @return string
+     * @return string The absolute path to the base log directory.
      */
     public function getBaseLogPath(): string
     {
@@ -267,9 +350,11 @@ class DebugManager
     }
 
     /**
-     * Get configuration information for debugging
+     * Returns diagnostic information about the current debug logging configuration.
      *
-     * @return array
+     * Provides details such as the log file path, base log directory, debug enabled state, log file existence, writability, and file size.
+     *
+     * @return array Associative array with keys: 'log_file', 'base_log_path', 'debug_enabled', 'log_file_exists', 'log_file_writable', and 'log_file_size'.
      */
     public function getConfigInfo(): array
     {

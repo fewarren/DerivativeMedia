@@ -4,17 +4,10 @@ namespace DerivativeMedia\Service;
 
 use Interop\Container\ContainerInterface;
 use Laminas\ServiceManager\Factory\FactoryInterface;
+use Omeka\File\Store\StoreInterface;
 
 class VideoThumbnailServiceFactory implements FactoryInterface
 {
-    /**
-     * Creates and configures a VideoThumbnailService instance using settings and dependencies from the service container.
-     *
-     * Retrieves paths for ffmpeg and ffprobe, the thumbnail percentage, and the base file storage path from configuration and settings.
-     * Injects required dependencies including temporary file factory, thumbnailer, and logger. If supported, also injects the file store.
-     *
-     * @return VideoThumbnailService The configured video thumbnail service instance.
-     */
     public function __invoke(ContainerInterface $services, $requestedName, array $options = null)
     {
         $settings = $services->get('Omeka\Settings');
@@ -35,10 +28,10 @@ class VideoThumbnailServiceFactory implements FactoryInterface
             $basePath
         );
 
-        // Inject the file store if we need it
-        if (method_exists($service, 'setFileStore')) {
-            $service->setFileStore($services->get('Omeka\File\Store'));
-        }
+        // Inject the file store dependency - VideoThumbnailService implements FileStoreAwareInterface
+        /** @var StoreInterface $fileStore */
+        $fileStore = $services->get('Omeka\File\Store');
+        $service->setFileStore($fileStore);
 
         return $service;
     }

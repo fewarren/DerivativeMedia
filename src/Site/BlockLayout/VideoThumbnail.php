@@ -36,9 +36,6 @@ class VideoThumbnail extends AbstractBlockLayout
      */
     protected $debugManager;
 
-    /**
-     * Initializes the VideoThumbnail block layout with required services for video thumbnail operations, form management, API access, and debugging.
-     */
     public function __construct(
         VideoThumbnailService $videoThumbnailService,
         FormElementManager $formElementManager,
@@ -51,21 +48,11 @@ class VideoThumbnail extends AbstractBlockLayout
         $this->debugManager = $debugManager;
     }
 
-    /**
-     * Returns the display label for the video thumbnail block layout.
-     *
-     * @return string The label "Video Thumbnail".
-     */
     public function getLabel()
     {
         return 'Video Thumbnail'; // @translate
     }
 
-    /**
-     * Validates and sanitizes the 'media' field in the block data, ensuring only numeric media IDs are retained.
-     *
-     * Updates the block's data to include only valid numeric media IDs in the 'media' field if present.
-     */
     public function onHydrate(\Omeka\Entity\SitePageBlock $block, ErrorStore $errorStore): void
     {
         $data = $block->getData();
@@ -83,29 +70,18 @@ class VideoThumbnail extends AbstractBlockLayout
         }
     }
 
-    /**
-     * Generates and returns the form for configuring a video thumbnail block.
-     *
-     * Retrieves available video media for the current site, populates the form's media selection dropdown, and sets form data from the provided block if available. Returns the rendered form partial for display in the block editor.
-     *
-     * @param PhpRenderer $view The view renderer.
-     * @param SiteRepresentation $site The current site context.
-     * @param SitePageRepresentation|null $page The current site page, if applicable.
-     * @param SitePageBlockRepresentation|null $block The block being edited, if applicable.
-     * @return string The rendered HTML form partial.
-     */
     public function form(PhpRenderer $view, SiteRepresentation $site,
         SitePageRepresentation $page = null, SitePageBlockRepresentation $block = null
     ) {
-        // CRITICAL DEBUG: Add error_log to ensure form method is being called
-        error_log("DerivativeMedia: VideoThumbnail::form method called");
+        // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
 
         $opId = 'block_form_' . uniqid();
         $this->debugManager->traceBlockForm($opId, $block);
 
         try {
             $this->debugManager->logInfo('Getting VideoThumbnailBlockForm from FormElementManager', DebugManager::COMPONENT_BLOCK, $opId);
-            error_log("DerivativeMedia: About to get form from FormElementManager");
+            // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+            $this->debugManager->logInfo('About to get form from FormElementManager', DebugManager::COMPONENT_BLOCK, $opId);
             $form = $this->formElementManager->get(VideoThumbnailBlockForm::class);
 
             // CRITICAL: Initialize the form before using it
@@ -166,18 +142,13 @@ class VideoThumbnail extends AbstractBlockLayout
         }
     }
 
-    /**
-     * Renders the video thumbnail block using the provided view and block data.
-     *
-     * Passes the block, its data, the site context, and the video thumbnail service to the view partial for display.
-     *
-     * @return string The rendered HTML for the video thumbnail block.
-     */
     public function render(PhpRenderer $view, SitePageBlockRepresentation $block) {
-        // BLOCK_TRACE: Log block rendering attempt
-        error_log("BLOCK_TRACE: VideoThumbnail::render() called");
-        error_log("BLOCK_TRACE: Block data: " . json_encode($block->data()));
-        error_log("BLOCK_TRACE: View class: " . get_class($view));
+        $opId = 'block_render_' . uniqid();
+
+        // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+        $this->debugManager->logInfo('VideoThumbnail::render() called', DebugManager::COMPONENT_BLOCK, $opId);
+        $this->debugManager->logInfo('Block data: ' . json_encode($block->data()), DebugManager::COMPONENT_BLOCK, $opId);
+        $this->debugManager->logInfo('View class: ' . get_class($view), DebugManager::COMPONENT_BLOCK, $opId);
 
         $data = $block->data();
 
@@ -193,13 +164,12 @@ class VideoThumbnail extends AbstractBlockLayout
     }
 
     /**
-     * Processes and sanitizes form data for the video thumbnail block before saving.
+     * Process data from the block form.
+     * CRITICAL METHOD: This method is essential for block data persistence.
+     * Without this method, block data is not properly saved.
      *
-     * Converts and validates the 'media_id' and 'override_percentage' fields, supporting legacy 'percentage' for backward compatibility. Ensures 'override_percentage' is an integer between 0 and 100, throwing an exception if out of range. Trims and normalizes 'heading' and 'template' fields, setting them to null if empty.
-     *
-     * @param array $data The submitted form data.
-     * @return array The sanitized and validated block data.
-     * @throws \InvalidArgumentException If 'override_percentage' or legacy 'percentage' is outside the 0–100 range.
+     * @param array $data The form data
+     * @return array The processed data
      */
     public function handleFormData(array $data)
     {

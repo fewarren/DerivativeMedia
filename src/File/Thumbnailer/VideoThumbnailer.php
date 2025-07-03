@@ -2,6 +2,7 @@
 
 namespace DerivativeMedia\File\Thumbnailer;
 
+use DerivativeMedia\Service\DebugManager;
 use Omeka\File\Thumbnailer\ThumbnailerInterface;
 use Omeka\Stdlib\ErrorStore;
 
@@ -13,31 +14,30 @@ class VideoThumbnailer implements ThumbnailerInterface
     protected $options;
 
     /**
-     * Initializes the VideoThumbnailer with optional configuration settings.
-     *
-     * @param array $options Optional configuration options such as FFmpeg paths and thumbnail percentage.
+     * @var DebugManager
      */
-    public function __construct(array $options = [])
+    protected $debugManager;
+
+    public function __construct(array $options = [], DebugManager $debugManager = null)
     {
         $this->options = $options;
-        error_log('DerivativeMedia VideoThumbnailer: Constructor called');
+        $this->debugManager = $debugManager ?: new DebugManager(); // Fallback if not injected
+
+        // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+        $this->debugManager->logInfo('VideoThumbnailer constructor called', DebugManager::COMPONENT_THUMBNAILER);
     }
 
     /**
-     * Generates video thumbnails at specified sizes using FFmpeg.
-     *
-     * Extracts a frame from the source video at a configurable percentage of its duration and creates thumbnails in various sizes, saving them to the provided destination paths. Optionally records errors in the given error store.
-     *
-     * @param string $sourcePath Path to the source video file.
-     * @param array $destPaths Associative array mapping size names to destination file paths.
-     * @param ErrorStore|null $errorStore Optional error store for recording processing errors.
-     * @return bool True if all thumbnails were created successfully, false otherwise.
+     * Create thumbnails for video files
      */
     public function createThumbnails($sourcePath, $destPaths, ErrorStore $errorStore = null): bool
     {
-        error_log("DerivativeMedia VideoThumbnailer: createThumbnails called");
-        error_log("DerivativeMedia VideoThumbnailer: Source: $sourcePath");
-        error_log("DerivativeMedia VideoThumbnailer: Destinations: " . print_r($destPaths, true));
+        $operationId = 'thumbnail-' . uniqid();
+
+        // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+        $this->debugManager->logInfo('createThumbnails called', DebugManager::COMPONENT_THUMBNAILER, $operationId);
+        $this->debugManager->logInfo("Source: $sourcePath", DebugManager::COMPONENT_THUMBNAILER, $operationId);
+        $this->debugManager->logInfo("Destinations: " . json_encode($destPaths), DebugManager::COMPONENT_THUMBNAILER, $operationId);
 
         try {
             // Get FFmpeg path from options or use default
@@ -45,11 +45,12 @@ class VideoThumbnailer implements ThumbnailerInterface
             $ffprobePath = $this->options['ffprobe_path'] ?? '/usr/bin/ffprobe';
             $thumbnailPercentage = $this->options['thumbnail_percentage'] ?? 25;
 
-            error_log("DerivativeMedia VideoThumbnailer: Using FFmpeg: $ffmpegPath");
+            // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+            $this->debugManager->logInfo("Using FFmpeg: $ffmpegPath", DebugManager::COMPONENT_THUMBNAILER, $operationId);
 
             // Check if source file exists
             if (!file_exists($sourcePath)) {
-                error_log("DerivativeMedia VideoThumbnailer: Source file not found: $sourcePath");
+                $this->debugManager->logError("Source file not found: $sourcePath", DebugManager::COMPONENT_THUMBNAILER, $operationId);
                 if ($errorStore) {
                     $errorStore->addError('source', 'Source video file not found');
                 }
@@ -65,24 +66,26 @@ class VideoThumbnailer implements ThumbnailerInterface
             
             $duration = (float) shell_exec($durationCmd);
             if ($duration <= 0) {
-                error_log("DerivativeMedia VideoThumbnailer: Could not determine video duration, using 1 second");
+                // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+                $this->debugManager->logWarning("Could not determine video duration, using 1 second", DebugManager::COMPONENT_THUMBNAILER, $operationId);
                 $position = 1;
             } else {
                 $position = ($duration * $thumbnailPercentage) / 100;
-                error_log("DerivativeMedia VideoThumbnailer: Video duration: {$duration}s, thumbnail at: {$position}s");
+                $this->debugManager->logInfo("Video duration: {$duration}s, thumbnail at: {$position}s", DebugManager::COMPONENT_THUMBNAILER, $operationId);
             }
 
             $success = true;
 
             // Create each required thumbnail size
             foreach ($destPaths as $size => $destPath) {
-                error_log("DerivativeMedia VideoThumbnailer: Creating $size thumbnail: $destPath");
+                // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+                $this->debugManager->logInfo("Creating $size thumbnail: $destPath", DebugManager::COMPONENT_THUMBNAILER, $operationId);
 
                 // Ensure destination directory exists
                 $destDir = dirname($destPath);
                 if (!is_dir($destDir)) {
                     mkdir($destDir, 0755, true);
-                    error_log("DerivativeMedia VideoThumbnailer: Created directory: $destDir");
+                    $this->debugManager->logInfo("Created directory: $destDir", DebugManager::COMPONENT_THUMBNAILER, $operationId);
                 }
 
                 // Determine dimensions based on size
@@ -112,16 +115,17 @@ class VideoThumbnailer implements ThumbnailerInterface
                     );
                 }
 
-                error_log("DerivativeMedia VideoThumbnailer: FFmpeg command: $cmd");
-                
+                // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+                $this->debugManager->logInfo("FFmpeg command: $cmd", DebugManager::COMPONENT_THUMBNAILER, $operationId);
+
                 $output = shell_exec($cmd);
-                error_log("DerivativeMedia VideoThumbnailer: FFmpeg output: $output");
+                $this->debugManager->logInfo("FFmpeg output: $output", DebugManager::COMPONENT_THUMBNAILER, $operationId);
 
                 // Check if thumbnail was created successfully
                 if (file_exists($destPath) && filesize($destPath) > 0) {
-                    error_log("DerivativeMedia VideoThumbnailer: Successfully created $size thumbnail: $destPath");
+                    $this->debugManager->logInfo("Successfully created $size thumbnail: $destPath", DebugManager::COMPONENT_THUMBNAILER, $operationId);
                 } else {
-                    error_log("DerivativeMedia VideoThumbnailer: Failed to create $size thumbnail: $destPath");
+                    $this->debugManager->logError("Failed to create $size thumbnail: $destPath", DebugManager::COMPONENT_THUMBNAILER, $operationId);
                     if ($errorStore) {
                         $errorStore->addError($size, "Failed to create $size thumbnail");
                     }
@@ -130,15 +134,17 @@ class VideoThumbnailer implements ThumbnailerInterface
             }
 
             if ($success) {
-                error_log("DerivativeMedia VideoThumbnailer: *** ALL THUMBNAILS CREATED SUCCESSFULLY ***");
+                // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+                $this->debugManager->logInfo("*** ALL THUMBNAILS CREATED SUCCESSFULLY ***", DebugManager::COMPONENT_THUMBNAILER, $operationId);
             } else {
-                error_log("DerivativeMedia VideoThumbnailer: *** SOME THUMBNAILS FAILED ***");
+                $this->debugManager->logError("*** SOME THUMBNAILS FAILED ***", DebugManager::COMPONENT_THUMBNAILER, $operationId);
             }
 
             return $success;
 
         } catch (\Exception $e) {
-            error_log('DerivativeMedia VideoThumbnailer: Exception: ' . $e->getMessage());
+            // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+            $this->debugManager->logError('Exception: ' . $e->getMessage(), DebugManager::COMPONENT_THUMBNAILER, $operationId);
             if ($errorStore) {
                 $errorStore->addError('exception', $e->getMessage());
             }
@@ -147,23 +153,16 @@ class VideoThumbnailer implements ThumbnailerInterface
     }
 
     /**
-     * Determines whether the thumbnailer supports the specified media type.
-     *
-     * @param string $mediaType The media type to check.
-     * @return bool True if the media type is a video, otherwise false.
+     * Check if this thumbnailer supports the given media type
      */
     public function supports($mediaType): bool
     {
         $isVideo = strpos($mediaType, 'video/') === 0;
-        error_log("DerivativeMedia VideoThumbnailer: supports($mediaType) = " . ($isVideo ? 'true' : 'false'));
         return $isVideo;
     }
 
     /**
-     * Returns the pixel dimension corresponding to a given thumbnail size.
-     *
-     * @param string $size The thumbnail size name ('large', 'medium', 'square', or other).
-     * @return int The pixel dimension for the specified size.
+     * Get dimensions for thumbnail size
      */
     protected function getDimensionsForSize(string $size): int
     {

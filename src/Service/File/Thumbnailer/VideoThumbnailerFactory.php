@@ -9,16 +9,6 @@ use Laminas\ServiceManager\Factory\FactoryInterface;
 
 class VideoThumbnailerFactory implements FactoryInterface
 {
-    /**
-     * Creates and returns a configured VideoThumbnailer instance.
-     *
-     * Retrieves FFmpeg and FFprobe paths and thumbnail capture percentage from settings, and ensures detailed logging throughout the instantiation process. If the DebugManager service is unavailable, a new instance is created directly. Throws an exception if VideoThumbnailer instantiation fails.
-     *
-     * @param ContainerInterface $services The service container.
-     * @param string $requestedName The requested service name.
-     * @param array|null $options Optional configuration options.
-     * @return VideoThumbnailer The configured VideoThumbnailer instance.
-     */
     public function __invoke(ContainerInterface $services, $requestedName, array $options = null)
     {
         // Get DebugManager for proper logging
@@ -52,8 +42,9 @@ class VideoThumbnailerFactory implements FactoryInterface
         );
 
         try {
-            $videoThumbnailer = new VideoThumbnailer($thumbnailerOptions);
-            $debugManager->logInfo('VideoThumbnailer instance created successfully', DebugManager::COMPONENT_FACTORY, $operationId);
+            // DEPENDENCY INJECTION FIX: Inject DebugManager into VideoThumbnailer
+            $videoThumbnailer = new VideoThumbnailer($thumbnailerOptions, $debugManager);
+            $debugManager->logInfo('VideoThumbnailer instance created successfully with injected DebugManager', DebugManager::COMPONENT_FACTORY, $operationId);
             return $videoThumbnailer;
         } catch (\Exception $e) {
             $debugManager->logError(

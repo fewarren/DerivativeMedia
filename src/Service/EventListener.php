@@ -5,6 +5,7 @@ namespace DerivativeMedia\Service;
 use Laminas\EventManager\Event;
 use Laminas\EventManager\SharedEventManagerInterface;
 use Omeka\Entity\Media;
+use Omeka\File\TempFileFactory;
 
 class EventListener
 {
@@ -14,19 +15,19 @@ class EventListener
     protected $services;
 
     /**
-     * Initializes the EventListener with the provided service container.
-     *
-     * @param \Interop\Container\ContainerInterface $services The service container for dependency retrieval.
+     * @var array Registry of pending video ingest temp files
      */
+    protected static $pendingVideoIngests = [];
+
     public function __construct($services)
     {
         $this->services = $services;
     }
 
     /**
-     * Retrieves a DebugManager instance from the service container, or creates a new one if unavailable.
+     * Get DebugManager instance with fallback
      *
-     * @return DebugManager The DebugManager instance for logging and debugging.
+     * @return DebugManager
      */
     protected function getDebugManager(): DebugManager
     {
@@ -39,9 +40,17 @@ class EventListener
     }
 
     /**
-     * Attaches event listeners for media API events, job status changes, and media ingest events.
+     * Get TempFileFactory instance for secure temporary file creation
      *
-     * Registers handlers for media creation and update events, job status changes, and media ingest completion to enable comprehensive detection and processing of media-related actions.
+     * @return TempFileFactory
+     */
+    protected function getTempFileFactory(): TempFileFactory
+    {
+        return $this->services->get('Omeka\File\TempFileFactory');
+    }
+
+    /**
+     * Attach event listeners
      */
     public function attach(SharedEventManagerInterface $sharedEventManager)
     {
@@ -100,11 +109,7 @@ class EventListener
     }
 
     /**
-     * Handles any media-related event, detecting video media and triggering thumbnail generation if enabled.
-     *
-     * Logs event details and inspects the response for media content. If a video media is detected and thumbnail generation is enabled in settings, initiates thumbnail creation. Also processes any previously stored video ingest information for deferred thumbnail generation.
-     *
-     * @param Event $event The triggered media-related event.
+     * Handle ANY media-related events - comprehensive detection
      */
     public function onAnyMediaEvent(Event $event)
     {
@@ -174,9 +179,7 @@ class EventListener
     }
 
     /**
-     * Handles job-related events by logging the event name and, if available, the job class.
-     *
-     * @param Event $event The job event to handle.
+     * Handle job events
      */
     public function onJobEvent(Event $event)
     {
@@ -195,19 +198,19 @@ class EventListener
     }
 
     /**
-     * Handles media ingest events by detecting uploaded video files and storing their ingest information for deferred processing.
-     *
-     * If a video file is detected during the ingest event, its temporary file path, MIME type, and request data are recorded for later thumbnail generation.
-     *
-     * @param Event $event The ingest event containing file and request information.
+     * Handle ingest events
      */
     public function onIngestEvent(Event $event)
     {
+        $debugManager = $this->getDebugManager();
+        $operationId = 'ingest-event-' . uniqid();
+
         $eventName = $event->getName();
-        error_log("DerivativeMedia EventListener: INGEST EVENT: $eventName");
+        // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+        $debugManager->logInfo("INGEST EVENT: $eventName", DebugManager::COMPONENT_SERVICE, $operationId);
 
         $params = $event->getParams();
-        error_log("DerivativeMedia EventListener: Ingest params: " . print_r(array_keys($params), true));
+        $debugManager->logInfo("Ingest params: " . print_r(array_keys($params), true), DebugManager::COMPONENT_SERVICE, $operationId);
 
         // Try to extract information about the uploaded file
         try {
@@ -216,17 +219,18 @@ class EventListener
 
             if ($tempFile && method_exists($tempFile, 'getTempPath')) {
                 $tempPath = $tempFile->getTempPath();
-                error_log("DerivativeMedia EventListener: Temp file path: $tempPath");
+                // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+                $debugManager->logInfo("Temp file path: $tempPath", DebugManager::COMPONENT_SERVICE, $operationId);
 
                 // Try to detect file type
                 if (file_exists($tempPath)) {
                     $mimeType = mime_content_type($tempPath);
                     $fileSize = filesize($tempPath);
-                    error_log("DerivativeMedia EventListener: File detected - MIME: $mimeType, Size: $fileSize bytes");
+                    $debugManager->logInfo("File detected - MIME: $mimeType, Size: $fileSize bytes", DebugManager::COMPONENT_SERVICE, $operationId);
 
                     if ($mimeType && strpos($mimeType, 'video/') === 0) {
-                        error_log("DerivativeMedia EventListener: *** VIDEO FILE DETECTED in ingest! MIME: $mimeType ***");
-                        error_log("DerivativeMedia EventListener: Video file path: $tempPath");
+                        $debugManager->logInfo("*** VIDEO FILE DETECTED in ingest! MIME: $mimeType ***", DebugManager::COMPONENT_SERVICE, $operationId);
+                        $debugManager->logInfo("Video file path: $tempPath", DebugManager::COMPONENT_SERVICE, $operationId);
 
                         // Store information for later processing
                         $this->storeVideoIngestInfo($tempPath, $mimeType, $request);
@@ -237,23 +241,19 @@ class EventListener
             if ($request && method_exists($request, 'getContent')) {
                 $content = $request->getContent();
                 if (is_array($content)) {
-                    error_log("DerivativeMedia EventListener: Request content keys: " . print_r(array_keys($content), true));
+                    // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+                    $debugManager->logInfo("Request content keys: " . print_r(array_keys($content), true), DebugManager::COMPONENT_SERVICE, $operationId);
                 }
             }
 
         } catch (\Exception $e) {
-            error_log("DerivativeMedia EventListener: Exception in ingest event: " . $e->getMessage());
+            // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+            $debugManager->logError("Exception in ingest event: " . $e->getMessage(), DebugManager::COMPONENT_SERVICE, $operationId);
         }
     }
 
     /**
-     * Stores information about a video ingest operation in a temporary JSON file for deferred processing.
-     *
-     * The stored information includes the temporary file path, MIME type, timestamp, and a unique request ID.
-     *
-     * @param string $tempPath The path to the temporary video file.
-     * @param string $mimeType The MIME type of the video file.
-     * @param mixed $request The request object or data associated with the ingest operation.
+     * Store video ingest information for later processing
      */
     protected function storeVideoIngestInfo($tempPath, $mimeType, $request)
     {
@@ -266,74 +266,100 @@ class EventListener
                 'request_id' => uniqid('video_ingest_', true)
             ];
 
-            $infoFile = '/tmp/omeka_video_ingest_' . $ingestInfo['request_id'] . '.json';
+            // SECURITY FIX: Use TempFileFactory for secure temporary file creation
+            $tempFileFactory = $this->getTempFileFactory();
+            $tempFile = $tempFileFactory->build();
+            $infoFile = $tempFile->getTempPath();
+
+            // Write ingest info to secure temporary file
             file_put_contents($infoFile, json_encode($ingestInfo));
 
-            error_log("DerivativeMedia EventListener: Stored video ingest info: $infoFile");
+            // SECURITY FIX: Register the temp file in our secure registry
+            self::$pendingVideoIngests[$ingestInfo['request_id']] = [
+                'temp_file' => $tempFile,
+                'file_path' => $infoFile,
+                'ingest_info' => $ingestInfo,
+                'created_at' => time()
+            ];
+
+            // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+            $debugManager = $this->getDebugManager();
+            $debugManager->logInfo("Stored video ingest info: $infoFile", DebugManager::COMPONENT_SERVICE, 'store-ingest-' . uniqid());
 
         } catch (\Exception $e) {
-            error_log("DerivativeMedia EventListener: Failed to store video ingest info: " . $e->getMessage());
+            // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+            $debugManager = $this->getDebugManager();
+            $debugManager->logError("Failed to store video ingest info: " . $e->getMessage(), DebugManager::COMPONENT_SERVICE, 'store-ingest-' . uniqid());
         }
     }
 
     /**
-     * Processes stored video ingest information files to trigger video media handling.
-     *
-     * Scans the system's temporary directory for JSON files containing video ingest information.
-     * For each file, if it is at least 5 seconds old, attempts to find and process the corresponding video media, then deletes the file.
-     * Also removes files older than 5 minutes as cleanup.
-     * Logs progress and exceptions using error_log.
+     * Process any stored video ingest information
+     * SECURITY FIX: Use secure registry instead of glob on /tmp
      */
     protected function processStoredVideoIngests()
     {
-        try {
-            $ingestFiles = glob('/tmp/omeka_video_ingest_*.json');
+        $debugManager = $this->getDebugManager();
+        $operationId = 'process-ingests-' . uniqid();
 
-            if (empty($ingestFiles)) {
+        try {
+            if (empty(self::$pendingVideoIngests)) {
                 return;
             }
 
-            error_log("DerivativeMedia EventListener: Found " . count($ingestFiles) . " stored video ingests to process");
+            // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+            $debugManager->logInfo("Found " . count(self::$pendingVideoIngests) . " stored video ingests to process", DebugManager::COMPONENT_SERVICE, $operationId);
 
-            foreach ($ingestFiles as $file) {
-                $info = json_decode(file_get_contents($file), true);
-                if (!$info) continue;
+            $currentTime = time();
+            $processedIds = [];
 
-                $age = time() - $info['timestamp'];
+            foreach (self::$pendingVideoIngests as $requestId => $registryEntry) {
+                $ingestInfo = $registryEntry['ingest_info'];
+                $age = $currentTime - $registryEntry['created_at'];
 
                 // Process files that are at least 5 seconds old (allow time for media creation)
                 if ($age >= 5) {
-                    error_log("DerivativeMedia EventListener: Processing stored video ingest: " . $info['request_id']);
+                    // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+                    $debugManager->logInfo("Processing stored video ingest: " . $requestId, DebugManager::COMPONENT_SERVICE, $operationId);
 
                     // Try to find the media entity that was created from this ingest
-                    $this->findAndProcessVideoMedia($info);
+                    $this->findAndProcessVideoMedia($ingestInfo);
 
-                    // Remove the processed file
-                    unlink($file);
+                    // Mark for removal from registry
+                    $processedIds[] = $requestId;
                 } else {
-                    error_log("DerivativeMedia EventListener: Video ingest too recent, waiting: " . $info['request_id']);
+                    $debugManager->logInfo("Video ingest too recent, waiting: " . $requestId, DebugManager::COMPONENT_SERVICE, $operationId);
                 }
 
-                // Clean up old files (older than 5 minutes)
+                // Clean up old entries (older than 5 minutes)
                 if ($age > 300) {
-                    error_log("DerivativeMedia EventListener: Cleaning up old video ingest file: " . $info['request_id']);
-                    unlink($file);
+                    $debugManager->logInfo("Cleaning up old video ingest entry: " . $requestId, DebugManager::COMPONENT_SERVICE, $operationId);
+                    $processedIds[] = $requestId;
+                }
+            }
+
+            // SECURITY FIX: Clean up processed entries from registry
+            foreach ($processedIds as $requestId) {
+                if (isset(self::$pendingVideoIngests[$requestId])) {
+                    // TempFile will be automatically cleaned up when object is destroyed
+                    unset(self::$pendingVideoIngests[$requestId]);
                 }
             }
 
         } catch (\Exception $e) {
-            error_log("DerivativeMedia EventListener: Exception processing stored video ingests: " . $e->getMessage());
+            // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+            $debugManager->logError("Exception processing stored video ingests: " . $e->getMessage(), DebugManager::COMPONENT_SERVICE, $operationId);
         }
     }
 
     /**
-     * Searches for recently created video media matching the provided ingest information and generates a thumbnail for the first match found.
-     *
-     * @param array $ingestInfo Associative array containing ingest details such as MIME type and request ID.
-     * @return bool True if a matching video media was found and processed; false otherwise.
+     * Find and process video media that was created from an ingest
      */
     protected function findAndProcessVideoMedia($ingestInfo)
     {
+        $debugManager = $this->getDebugManager();
+        $operationId = 'find-media-' . uniqid();
+
         try {
             $api = $this->services->get('Omeka\ApiManager');
 
@@ -346,16 +372,18 @@ class EventListener
             ]);
 
             $mediaItems = $response->getContent();
-            error_log("DerivativeMedia EventListener: Found " . count($mediaItems) . " media items with type " . $ingestInfo['mime_type']);
+            // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+            $debugManager->logInfo("Found " . count($mediaItems) . " media items with type " . $ingestInfo['mime_type'], DebugManager::COMPONENT_SERVICE, $operationId);
 
             foreach ($mediaItems as $media) {
                 $mediaId = $media->id();
                 $mediaType = $media->mediaType();
 
-                error_log("DerivativeMedia EventListener: Checking media #$mediaId - Type: $mediaType");
+                // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+                $debugManager->logInfo("Checking media #$mediaId - Type: $mediaType", DebugManager::COMPONENT_SERVICE, $operationId);
 
                 if ($mediaType && strpos($mediaType, 'video/') === 0) {
-                    error_log("DerivativeMedia EventListener: *** FOUND VIDEO MEDIA #$mediaId from ingest! ***");
+                    $debugManager->logInfo("*** FOUND VIDEO MEDIA #$mediaId from ingest! ***", DebugManager::COMPONENT_SERVICE, $operationId);
 
                     // Get the actual media entity
                     $mediaEntity = $api->read('media', $mediaId)->getContent();
@@ -367,22 +395,19 @@ class EventListener
                 }
             }
 
-            error_log("DerivativeMedia EventListener: No matching video media found for ingest: " . $ingestInfo['request_id']);
+            // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+            $debugManager->logWarning("No matching video media found for ingest: " . $ingestInfo['request_id'], DebugManager::COMPONENT_SERVICE, $operationId);
             return false;
 
         } catch (\Exception $e) {
-            error_log("DerivativeMedia EventListener: Exception finding video media: " . $e->getMessage());
+            // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+            $debugManager->logError("Exception finding video media: " . $e->getMessage(), DebugManager::COMPONENT_SERVICE, $operationId);
             return false;
         }
     }
 
     /**
-     * Generates a thumbnail image for the given video media at a configured percentage position.
-     *
-     * Attempts to create a video thumbnail using the VideoThumbnailService. The thumbnail position is determined by a percentage value from settings, defaulting to 25% if not set.
-     *
-     * @param object $media The media entity representing the video.
-     * @return bool True if the thumbnail was generated successfully, false otherwise.
+     * Generate video thumbnail
      */
     protected function generateVideoThumbnail($media)
     {
@@ -403,10 +428,14 @@ class EventListener
             
             if ($success) {
                 $logger->info("DerivativeMedia EventListener: Successfully generated video thumbnail for media #{$media->getId()}");
-                error_log("DerivativeMedia EventListener: SUCCESS - Video thumbnail generated for media #{$media->getId()}");
+                // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+                $debugManager = $this->getDebugManager();
+                $debugManager->logInfo("SUCCESS - Video thumbnail generated for media #{$media->getId()}", DebugManager::COMPONENT_SERVICE, 'process-video-' . uniqid());
             } else {
                 $logger->err("DerivativeMedia EventListener: Failed to generate video thumbnail for media #{$media->getId()}");
-                error_log("DerivativeMedia EventListener: FAILED - Video thumbnail generation failed for media #{$media->getId()}");
+                // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+                $debugManager = $this->getDebugManager();
+                $debugManager->logError("FAILED - Video thumbnail generation failed for media #{$media->getId()}", DebugManager::COMPONENT_SERVICE, 'process-video-' . uniqid());
             }
             
             return $success;
@@ -414,7 +443,9 @@ class EventListener
         } catch (\Exception $e) {
             $logger->err("DerivativeMedia EventListener: Exception during video thumbnail generation for media #{$media->getId()}: " . $e->getMessage());
             $logger->err('DerivativeMedia EventListener: Stack trace: ' . $e->getTraceAsString());
-            error_log("DerivativeMedia EventListener: EXCEPTION - " . $e->getMessage());
+            // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+            $debugManager = $this->getDebugManager();
+            $debugManager->logError("EXCEPTION - " . $e->getMessage(), DebugManager::COMPONENT_SERVICE, 'process-video-' . uniqid());
             return false;
         }
     }

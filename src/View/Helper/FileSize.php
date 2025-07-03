@@ -10,13 +10,11 @@ use Laminas\View\Helper\AbstractHelper;
 class FileSize extends AbstractHelper
 {
     /**
-     * Converts a file size in bytes to a human-readable string with appropriate units.
+     * Format a file size in bytes to human-readable format.
      *
-     * Returns "0 bytes" if the input is null, zero, or negative. Uses decimal units (KB, MB, etc.) with a divisor of 1000. For sizes less than 1000 bytes, no decimals are shown; for larger sizes, decimals are shown only if the value is less than 10 and precision is greater than zero.
-     *
-     * @param int|null $bytes The file size in bytes. If null, zero, or negative, returns "0 bytes".
-     * @param int $precision Number of decimal places for sizes above bytes (default: 1).
-     * @return string The formatted file size string, e.g., "1.2 MB" or "500 bytes".
+     * @param int|null $bytes File size in bytes
+     * @param int $precision Number of decimal places (default: 1)
+     * @return string Formatted file size
      */
     public function __invoke($bytes = null, int $precision = 1): string
     {

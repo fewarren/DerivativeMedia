@@ -5,6 +5,7 @@ namespace DerivativeMedia\Media\FileRenderer;
 use Laminas\View\Renderer\PhpRenderer;
 use Omeka\Api\Representation\MediaRepresentation;
 use Omeka\Media\FileRenderer\RendererInterface;
+use DerivativeMedia\Service\DebugManager;
 
 /**
  * Simplified VideoRenderer based on core Omeka VideoRenderer
@@ -16,30 +17,33 @@ class VideoRenderer implements RendererInterface
         'controls' => true,
     ];
 
-    /**
-     * Renders an HTML5 video element for the given media with configurable options and optional download prevention.
-     *
-     * Generates a `<video>` tag using the original media URL, applying attributes based on provided options such as width, height, poster, autoplay, controls, loop, muted, CSS class, and preload. If download prevention is enabled via settings, additional attributes are added to restrict downloading and enhance security, and the fallback content omits the download link.
-     *
-     * @param PhpRenderer $view The view renderer used for escaping, translation, and hyperlink generation.
-     * @param MediaRepresentation $media The media item to render as a video.
-     * @param array $options Optional rendering options (e.g., width, height, controls, autoplay, poster, loop, muted, class, preload).
-     * @return string The complete HTML for the video element.
-     */
     public function render(
         PhpRenderer $view,
         MediaRepresentation $media,
         array $options = []
     ) {
-        // RENDERER_TRACE: Log renderer call details
-        error_log("RENDERER_TRACE: VideoRenderer::render() called for media ID: " . $media->id());
-        error_log("RENDERER_TRACE: Media type: " . $media->mediaType());
-        error_log("RENDERER_TRACE: Media filename: " . $media->filename());
-        error_log("RENDERER_TRACE: Options: " . json_encode($options));
-        error_log("RENDERER_TRACE: View class: " . get_class($view));
+        // CONFIGURABLE LOGGING FIX: Use DebugManager instead of extensive error_log calls
+        $debugManager = null;
+        $operationId = 'video-render-' . uniqid();
 
-        // CRITICAL DEBUG: Log that our custom VideoRenderer is being called
-        error_log('DerivativeMedia VideoRenderer: CUSTOM RENDERER CALLED for media ID: ' . $media->id());
+        try {
+            // Get DebugManager from view's service locator
+            $serviceLocator = $view->getHelperPluginManager()->getServiceLocator();
+            $debugManager = $serviceLocator->get('DerivativeMedia\Service\DebugManager');
+        } catch (\Exception $e) {
+            // DebugManager not available, continue without logging
+            $debugManager = null;
+        }
+
+        if ($debugManager) {
+            // RENDERER_TRACE: Log renderer call details (only when debugging enabled)
+            $debugManager->logDebug("VideoRenderer::render() called for media ID: " . $media->id(), DebugManager::COMPONENT_RENDERER, $operationId);
+            $debugManager->logDebug("Media type: " . $media->mediaType(), DebugManager::COMPONENT_RENDERER, $operationId);
+            $debugManager->logDebug("Media filename: " . $media->filename(), DebugManager::COMPONENT_RENDERER, $operationId);
+            $debugManager->logDebug("Options: " . json_encode($options), DebugManager::COMPONENT_RENDERER, $operationId);
+            $debugManager->logDebug("View class: " . get_class($view), DebugManager::COMPONENT_RENDERER, $operationId);
+            $debugManager->logInfo("CUSTOM RENDERER CALLED for media ID: " . $media->id(), DebugManager::COMPONENT_RENDERER, $operationId);
+        }
 
         $options = array_merge(self::DEFAULT_OPTIONS, $options);
 
@@ -114,4 +118,6 @@ class VideoRenderer implements RendererInterface
             $fallbackContent
         );
     }
+
+
 }

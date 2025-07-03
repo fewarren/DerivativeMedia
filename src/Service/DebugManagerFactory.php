@@ -7,13 +7,6 @@ use Interop\Container\ContainerInterface;
 
 class DebugManagerFactory implements FactoryInterface
 {
-    /**
-     * Creates and returns a DebugManager instance configured with settings from Omeka S and environment variables.
-     *
-     * Retrieves debug configuration options from the application settings and allows overrides via environment variables for deployment flexibility.
-     *
-     * @return DebugManager The configured DebugManager instance.
-     */
     public function __invoke(ContainerInterface $container, $requestedName, array $options = null)
     {
         $settings = $container->get('Omeka\Settings');

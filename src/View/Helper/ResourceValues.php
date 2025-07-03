@@ -11,14 +11,12 @@ use Omeka\Api\Representation\AbstractResourceEntityRepresentation;
 class ResourceValues extends AbstractHelper
 {
     /**
-     * Generates formatted HTML output displaying all metadata values of a resource.
+     * Display resource values/metadata in a formatted way.
      *
-     * Iterates over each property of the given resource, optionally filtering values by language and locale. Renders each property with its label and values, formatting linked resources as hyperlinks, URIs as clickable links, and literals as escaped text.
-     *
-     * @param AbstractResourceEntityRepresentation $resource The resource whose metadata values will be displayed.
-     * @param array|null $valueLang Optional array of language codes to filter values.
-     * @param bool $filterLocale Whether to apply language filtering to the values.
-     * @return string HTML markup representing the resource's metadata values.
+     * @param AbstractResourceEntityRepresentation $resource The resource (item, media, etc.)
+     * @param array|null $valueLang Language filter for values
+     * @param bool $filterLocale Whether to filter by locale
+     * @return string HTML output of resource values
      */
     public function __invoke(AbstractResourceEntityRepresentation $resource, $valueLang = null, bool $filterLocale = false): string
     {
@@ -83,7 +81,8 @@ class ResourceValues extends AbstractHelper
                     $uri = $value->uri();
                     $label = $value->value() ?: $uri;
                     if ($uri) {
-                        $output .= '<a href="' . $escape($uri) . '" target="_blank">' . $escape($label) . '</a>';
+                        // SECURITY FIX: Add rel="noopener" to prevent window.opener access
+                        $output .= '<a href="' . $escape($uri) . '" target="_blank" rel="noopener">' . $escape($label) . '</a>';
                     } else {
                         $output .= $escape($label);
                     }

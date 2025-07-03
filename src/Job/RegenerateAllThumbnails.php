@@ -9,11 +9,6 @@ use Omeka\Api\Representation\MediaRepresentation;
  */
 class RegenerateAllThumbnails extends AbstractJob
 {
-    /**
-     * Regenerates thumbnails for all media items with original files.
-     *
-     * Iterates through media records, generating and storing thumbnails for each supported type using the configured thumbnailer. Updates the database to reflect successful thumbnail creation and logs progress, errors, and summary statistics. Optionally forces regeneration for all media or only those lacking thumbnails, depending on the provided argument.
-     */
     public function perform()
     {
         $services = $this->getServiceLocator();
@@ -39,6 +34,10 @@ class RegenerateAllThumbnails extends AbstractJob
         $total = count($mediaList);
 
         $logger->info(sprintf('Found %d media files to process (force_regenerate: %s)', $total, $forceRegenerate ? 'true' : 'false'));
+
+        // Log initial memory usage for monitoring
+        $initialMemory = memory_get_usage(true);
+        $logger->info(sprintf('Initial memory usage: %s', $this->formatBytes($initialMemory)));
 
         $processed = 0;
         $successful = 0;
@@ -136,14 +135,57 @@ class RegenerateAllThumbnails extends AbstractJob
                 $failed++;
             }
 
-            // Periodic progress update
+            // Periodic progress update and memory management
             if ($processed % 10 === 0) {
-                $logger->info(sprintf('Progress: %d/%d processed, %d successful, %d failed', 
-                    $processed, $total, $successful, $failed));
+                $currentMemory = memory_get_usage(true);
+                $peakMemory = memory_get_peak_usage(true);
+
+                $logger->info(sprintf('Progress: %d/%d processed, %d successful, %d failed | Memory: %s (peak: %s)',
+                    $processed, $total, $successful, $failed,
+                    $this->formatBytes($currentMemory), $this->formatBytes($peakMemory)));
+
+                // CRITICAL FIX: Clear entity manager to prevent memory accumulation
+                // This releases managed entities from memory during bulk operations
+                $entityManager->clear();
+
+                // Force garbage collection for large batches
+                if ($total > 100 && $processed % 50 === 0) {
+                    gc_collect_cycles();
+                    $logger->info('Forced garbage collection for large batch operation');
+                }
             }
         }
 
-        $logger->info(sprintf('Universal thumbnail regeneration completed: %d processed, %d successful, %d failed', 
+        $finalMemory = memory_get_usage(true);
+        $peakMemory = memory_get_peak_usage(true);
+
+        $logger->info(sprintf('Universal thumbnail regeneration completed: %d processed, %d successful, %d failed',
             $processed, $successful, $failed));
+        $logger->info(sprintf('Final memory usage: %s (peak: %s)',
+            $this->formatBytes($finalMemory), $this->formatBytes($peakMemory)));
+    }
+
+    /**
+     * Format bytes into human-readable format
+     *
+     * @param int $bytes
+     * @return string
+     */
+    private function formatBytes(int $bytes): string
+    {
+        if ($bytes === 0) {
+            return '0 bytes';
+        }
+
+        $units = ['bytes', 'KB', 'MB', 'GB', 'TB'];
+        $unitIndex = 0;
+        $size = $bytes;
+
+        while ($size >= 1024 && $unitIndex < count($units) - 1) {
+            $size = $size / 1024;
+            $unitIndex++;
+        }
+
+        return sprintf('%.2f %s', $size, $units[$unitIndex]);
     }
 }

@@ -25,8 +25,8 @@ class ViewerDetector
      */
     private $siteSettings;
 
-    /****
-     * Initializes the ViewerDetector with module management and settings services.
+    /**
+     * Constructor
      */
     public function __construct(ModuleManager $moduleManager, Settings $settings, SiteSettings $siteSettings)
     {
@@ -36,11 +36,9 @@ class ViewerDetector
     }
 
     /**
-     * Returns an array of all active viewer modules with their video support capabilities and configuration details.
+     * Get all active viewer modules and their video capabilities
      *
-     * Each viewer entry includes flags for video support, supported page types, priority, and URL strategy. The viewers are sorted by descending priority.
-     *
-     * @return array Associative array of active viewers keyed by module name, each containing capability and configuration details.
+     * @return array
      */
     public function getActiveVideoViewers()
     {
@@ -94,11 +92,9 @@ class ViewerDetector
     }
 
     /**
-     * Determines the most suitable viewer module for video content.
+     * Get the best viewer for video content
      *
-     * Selects the preferred viewer from settings if it supports video; otherwise, returns the highest priority active viewer that supports video. Returns null if no suitable viewer is found.
-     *
-     * @return array|null The selected viewer's configuration array, or null if none are available.
+     * @return array|null
      */
     public function getBestVideoViewer()
     {
@@ -126,16 +122,25 @@ class ViewerDetector
     }
 
     /**
-     * Determines the optimal URL strategy for displaying video thumbnails based on the best available viewer and its configuration.
+     * Determine the best URL strategy for video thumbnails
      *
-     * Returns an array describing the strategy, the selected viewer (if any), and the type of URL to use for the video thumbnail.
+     * @param object $media The media object (RESERVED FOR FUTURE USE: media-specific URL logic)
+     * @param string $siteSlug The site slug (RESERVED FOR FUTURE USE: site-specific URL logic)
+     * @return array URL strategy information
      *
-     * @param object $media The media object for which the URL strategy is determined.
-     * @param string $siteSlug The slug of the site context.
-     * @return array An array with keys: 'strategy', 'viewer', and 'url_type'.
+     * @todo TODO: Implement media-specific URL strategies based on media properties
+     * @todo TODO: Implement site-specific URL strategies based on site configuration
+     * @todo TODO: Consider media file size, format, or metadata for strategy selection
+     * @todo TODO: Consider site-specific viewer preferences or URL patterns
      */
     public function getVideoUrlStrategy($media, $siteSlug)
     {
+        // FUTURE USE: $media parameter reserved for media-specific URL logic
+        // Examples: Different strategies based on file size, format, duration, or metadata
+
+        // FUTURE USE: $siteSlug parameter reserved for site-specific URL logic
+        // Examples: Site-specific viewer preferences, custom URL patterns, or domain-specific routing
+
         $bestViewer = $this->getBestVideoViewer();
         
         if (!$bestViewer) {
@@ -182,10 +187,10 @@ class ViewerDetector
     }
 
     /**
-     * Determines whether the specified module is currently active.
+     * Check if a module is active
      *
-     * @param string $moduleId The identifier of the module to check.
-     * @return bool True if the module is active; otherwise, false.
+     * @param string $moduleId
+     * @return bool
      */
     private function isModuleActive($moduleId)
     {
@@ -194,14 +199,13 @@ class ViewerDetector
     }
 
     /**
-     * Generates a URL for a video media object that always points to the dedicated video player page for the specified site.
+     * Generate the optimal URL for a video media based on active viewers
+     * CRITICAL FIX: Always use dedicated video player page to respect preferred viewer setting
      *
-     * This ensures the preferred viewer is used and avoids conflicts with CleanUrl or other URL rewriting mechanisms.
-     *
-     * @param object $media The media object for which to generate the URL.
-     * @param string $siteSlug The slug of the site.
-     * @param callable|null $urlHelper Optional URL helper (not used in this implementation).
-     * @return string The URL to the dedicated video player page for the media.
+     * @param object $media The media object
+     * @param string $siteSlug The site slug
+     * @param callable|null $urlHelper Optional URL helper function for proper URL generation
+     * @return string The generated URL
      */
     public function generateVideoUrl($media, $siteSlug, $urlHelper = null)
     {
@@ -213,11 +217,9 @@ class ViewerDetector
     }
 
     /**
-     * Returns debugging information about active modules, video viewer modules, and relevant viewer settings.
+     * Get viewer module information for debugging
      *
-     * The returned array includes lists of all active modules, detailed information about active video viewer modules, and current settings related to viewer preferences and OctopusViewer display options.
-     *
-     * @return array Debug information including active modules, viewer modules, and settings.
+     * @return array
      */
     public function getViewerDebugInfo()
     {

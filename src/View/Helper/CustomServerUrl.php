@@ -2,24 +2,47 @@
 namespace DerivativeMedia\View\Helper;
 
 use Laminas\View\Helper\ServerUrl as LaminasServerUrl;
+use DerivativeMedia\Service\DebugManager;
 
 /**
  * Custom ServerUrl Helper
- * 
+ *
  * This helper fixes URL generation issues by forcing the use of configured base_url
  * when server environment variables are missing or malformed.
- * 
+ *
  * Addresses the issue where ServerUrl() returns "http://" instead of proper URLs.
+ *
+ * Refactored for Laminas v3 compatibility with constructor injection.
  */
 class CustomServerUrl extends LaminasServerUrl
 {
     /**
-     * Generates a server URL, using a configured base URL as a fallback if the default generation is malformed.
+     * @var string|null
+     */
+    private $configuredBaseUrl;
+
+    /**
+     * @var DebugManager|null
+     */
+    private $debugManager;
+
+    /**
+     * Constructor with dependency injection
      *
-     * If the parent server URL generation returns a malformed URL (e.g., missing domain), attempts to retrieve and use the application's configured `base_url`. Optionally appends the provided request URI to the base URL.
-     *
-     * @param string|null $requestUri An optional request URI to append to the base URL.
-     * @return string The generated server URL.
+     * @param string|null $configuredBaseUrl The configured base URL from Omeka S
+     * @param DebugManager|null $debugManager The debug manager for logging
+     */
+    public function __construct(?string $configuredBaseUrl = null, ?DebugManager $debugManager = null)
+    {
+        parent::__construct();
+        $this->configuredBaseUrl = $configuredBaseUrl;
+        $this->debugManager = $debugManager;
+    }
+    /**
+     * Generate a server URL
+     * 
+     * @param string|null $requestUri Optional request URI
+     * @return string The server URL
      */
     public function __invoke($requestUri = null)
     {
@@ -28,18 +51,26 @@ class CustomServerUrl extends LaminasServerUrl
         
         // Check if parent result is malformed (missing domain)
         if ($this->isUrlMalformed($parentResult)) {
+            // CONFIGURABLE LOGGING: Log malformed URL detection
+            $this->logDebug("Malformed URL detected: '$parentResult', attempting to use configured base URL");
+
             // Get the configured base_url from Omeka S
             $baseUrl = $this->getConfiguredBaseUrl();
-            
+
             if ($baseUrl) {
                 // Use configured base_url instead
                 if ($requestUri !== null) {
                     // If a specific URI was requested, append it to base URL
-                    return rtrim($baseUrl, '/') . '/' . ltrim($requestUri, '/');
+                    $fixedUrl = rtrim($baseUrl, '/') . '/' . ltrim($requestUri, '/');
+                    $this->logDebug("Fixed malformed URL: '$parentResult' -> '$fixedUrl'");
+                    return $fixedUrl;
                 } else {
                     // Return just the base URL
+                    $this->logDebug("Using configured base URL: '$baseUrl'");
                     return $baseUrl;
                 }
+            } else {
+                $this->logWarning("Malformed URL detected but no configured base URL available");
             }
         }
         
@@ -48,12 +79,10 @@ class CustomServerUrl extends LaminasServerUrl
     }
     
     /**
-     * Determines whether the given URL is malformed due to a missing domain.
-     *
-     * A URL is considered malformed if it is exactly "http://", "https://", or starts with "http:///" or "https:///".
-     *
-     * @param string $url The URL to evaluate.
-     * @return bool True if the URL is malformed; otherwise, false.
+     * Check if a URL is malformed (missing domain)
+     * 
+     * @param string $url The URL to check
+     * @return bool True if URL is malformed
      */
     private function isUrlMalformed($url)
     {
@@ -67,42 +96,49 @@ class CustomServerUrl extends LaminasServerUrl
     }
     
     /**
-     * Retrieves the configured base URL from the Omeka S configuration or settings.
+     * Get the configured base_url (injected via constructor)
      *
-     * Attempts to obtain the `base_url` from the main configuration array. If not found, it tries to retrieve it from Omeka settings. Returns `null` if no base URL is configured or if an error occurs during retrieval.
-     *
-     * @return string|null The configured base URL, or null if not available.
+     * @return string|null The configured base URL or null if not found
      */
     private function getConfiguredBaseUrl()
     {
-        try {
-            // Get the view helper manager
-            $helperManager = $this->getView()->getHelperPluginManager();
-            
-            // Get the service manager from the helper manager
-            $serviceManager = $helperManager->getServiceLocator();
-            
-            // Get the configuration
-            $config = $serviceManager->get('Config');
-            
-            // Return the configured base_url if it exists
-            if (isset($config['base_url']) && !empty($config['base_url'])) {
-                return $config['base_url'];
-            }
-            
-            // Fallback: try to get from settings
-            $settings = $serviceManager->get('Omeka\Settings');
-            $baseUrl = $settings->get('base_url');
-            
-            if ($baseUrl && !empty($baseUrl)) {
-                return $baseUrl;
-            }
-            
-        } catch (\Exception $e) {
-            // If we can't access configuration, log the error but don't break
-            error_log("CustomServerUrl: Error accessing configuration: " . $e->getMessage());
+        // LAMINAS V3 FIX: Use injected dependency instead of deprecated service locator
+        return $this->configuredBaseUrl;
+    }
+
+    /**
+     * Log debug message using injected DebugManager
+     *
+     * @param string $message The message to log
+     */
+    private function logDebug(string $message): void
+    {
+        if ($this->debugManager) {
+            $this->debugManager->logDebug($message, DebugManager::COMPONENT_HELPER, 'serverurl-' . uniqid());
         }
-        
-        return null;
+    }
+
+    /**
+     * Log warning message using injected DebugManager
+     *
+     * @param string $message The message to log
+     */
+    private function logWarning(string $message): void
+    {
+        if ($this->debugManager) {
+            $this->debugManager->logWarning($message, DebugManager::COMPONENT_HELPER, 'serverurl-' . uniqid());
+        }
+    }
+
+    /**
+     * Log error message using injected DebugManager
+     *
+     * @param string $message The message to log
+     */
+    private function logError(string $message): void
+    {
+        if ($this->debugManager) {
+            $this->debugManager->logError($message, DebugManager::COMPONENT_HELPER, 'serverurl-' . uniqid());
+        }
     }
 }

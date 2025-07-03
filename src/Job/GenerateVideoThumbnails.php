@@ -23,11 +23,6 @@ class GenerateVideoThumbnails extends AbstractJob
      */
     protected $videoThumbnailService;
 
-    /**
-     * Executes the job to generate video thumbnails in bulk or for a single media item.
-     *
-     * Retrieves job arguments to determine whether to process all video media matching specified criteria or a single media item. For each relevant video media, generates a thumbnail unless one already exists and regeneration is not forced. Tracks and logs the number of processed, successful, failed, and skipped items. Handles exceptions and supports graceful job termination.
-     */
     public function perform(): void
     {
         $services = $this->getServiceLocator();
@@ -149,14 +144,7 @@ class GenerateVideoThumbnails extends AbstractJob
     }
 
     /**
-     * Generates a video thumbnail for a single media item if it is a video file.
-     *
-     * Attempts to find the specified media entity by ID, verifies it is a video, and generates a thumbnail at the given percentage position. Logs the outcome and handles errors gracefully.
-     *
-     * @param int $mediaId The ID of the media item to process.
-     * @param bool $forceRegenerate Whether to force thumbnail regeneration even if one exists.
-     * @param int|null $percentage The position in the video (as a percentage) to capture the thumbnail, or null to use the default.
-     * @param string $opId The operation ID for logging and tracking.
+     * Process a single media item for video thumbnail generation
      */
     protected function processSingleMedia(int $mediaId, bool $forceRegenerate, ?int $percentage, string $opId): void
     {
@@ -182,8 +170,8 @@ class GenerateVideoThumbnails extends AbstractJob
 
             $this->debugManager->logInfo("Generating video thumbnail for media #$mediaId: {$mediaEntity->getFilename()}", DebugManager::COMPONENT_SERVICE, $opId);
 
-            // Generate thumbnail (force regeneration for single media to override defaults)
-            $success = $this->videoThumbnailService->generateThumbnail($mediaEntity, $percentage);
+            // FORCE REGENERATION FIX: Pass the forceRegenerate parameter to the service
+            $success = $this->videoThumbnailService->generateThumbnail($mediaEntity, $percentage, $forceRegenerate);
 
             if ($success) {
                 $this->debugManager->logInfo("Successfully generated thumbnail for media #$mediaId", DebugManager::COMPONENT_SERVICE, $opId);

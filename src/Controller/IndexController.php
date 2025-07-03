@@ -13,11 +13,13 @@ class IndexController extends \Omeka\Controller\IndexController
     use TraitDerivative;
 
     /**
-     * Handles requests for derivative media files, validating type and availability, and delivers the file or returns an appropriate error response.
+     * @todo Manage other storage type. See module Access.
+     * @todo Some formats don't really need storage (text…), so make them truly dynamic.
      *
-     * Validates the requested derivative type and checks if it is enabled. Ensures the resource is an item and that the derivative file exists and is ready. If not ready, may attempt to create the derivative immediately or dispatch a background job, depending on the derivative mode and settings. Returns JSON error or status messages with relevant HTTP status codes if the derivative is unavailable or cannot be prepared. If the derivative is ready, sends the file as an HTTP response attachment.
+     * @todo Dynamic files cannot be stored in media data because of rights.
      *
-     * @return \Laminas\View\Model\JsonModel|\Laminas\Http\PhpEnvironment\Response Returns a JSON error/status response or the file as an HTTP response.
+     * {@inheritDoc}
+     * @see \Omeka\Controller\IndexController::indexAction()
      */
     public function indexAction()
     {
@@ -140,45 +142,71 @@ class IndexController extends \Omeka\Controller\IndexController
     }
 
     /**
-     * Handles file download requests for media files expected by VideoRenderer and AudioRenderer.
-     *
-     * Constructs the file path from URL parameters, verifies file existence and readability, determines the MIME type, and sends the file inline to the client. Returns a 404 response if the file is not found or unreadable.
-     *
-     * @return \Laminas\Http\PhpEnvironment\Response The HTTP response containing the file or a 404 status.
+     * SECURITY FIX: Secure file download with path traversal protection and Omeka file store integration
      */
     public function downloadFileAction()
     {
-        $folder = $this->params('folder');
-        $id = $this->params('id');
-        $filename = $this->params('filename');
+        try {
+            // SECURITY FIX: Validate and sanitize all user inputs
+            $folder = $this->validatePathComponent($this->params('folder'), 'folder');
+            $id = $this->validatePathComponent($this->params('id'), 'id');
+            $filename = $this->validateFilename($this->params('filename'));
 
-        // Construct the file path
-        $filepath = sprintf('/var/www/omeka-s/files/%s/%s/%s', $folder, $id, $filename);
+            if (!$folder || !$id || !$filename) {
+                $this->getResponse()->setStatusCode(400);
+                return $this->getResponse();
+            }
 
-        // Check if file exists
-        if (!file_exists($filepath) || !is_readable($filepath)) {
-            $this->getResponse()->setStatusCode(404);
+            // SECURITY FIX: Use Omeka's file store instead of direct filesystem access
+            $fileStore = $this->getServiceLocator()->get('Omeka\File\Store');
+            $basePath = $this->getServiceLocator()->get('Config')['file_store']['local']['base_path'] ?? '/var/www/omeka-s/files';
+
+            // SECURITY FIX: Construct secure file path with validation
+            $relativePath = $this->buildSecureFilePath($folder, $id, $filename);
+            $fullPath = $basePath . '/' . $relativePath;
+
+            // SECURITY FIX: Validate the final path is within allowed directory
+            if (!$this->isPathSafe($fullPath, $basePath)) {
+                error_log("DerivativeMedia: Path traversal attempt blocked: $fullPath");
+                $this->getResponse()->setStatusCode(403);
+                return $this->getResponse();
+            }
+
+            // Check if file exists using file store
+            if (!$fileStore->fileExists($relativePath)) {
+                $this->getResponse()->setStatusCode(404);
+                return $this->getResponse();
+            }
+
+            // Get file content through file store
+            $fileContent = $fileStore->getFileContents($relativePath);
+            if ($fileContent === false) {
+                $this->getResponse()->setStatusCode(500);
+                return $this->getResponse();
+            }
+
+            // Determine media type safely
+            $mediaType = $this->getSecureMediaType($filename);
+
+            // Send the file securely
+            return $this->sendFileContent($fileContent, $mediaType, $filename, 'inline');
+
+        } catch (\Exception $e) {
+            error_log("DerivativeMedia: Download error: " . $e->getMessage());
+            $this->getResponse()->setStatusCode(500);
             return $this->getResponse();
         }
-
-        // Determine media type
-        $mediaType = mime_content_type($filepath) ?: 'application/octet-stream';
-
-        // Send the file
-        return $this->sendFile($filepath, $mediaType, $filename, 'inline', true);
     }
 
     /**
-     * Sends a file to the client with appropriate HTTP headers, supporting inline or attachment disposition, optional caching, and HTTP range requests for partial content delivery.
+     * This is the 'file' action that is invoked when a user wants to download
+     * the given file.
      *
-     * Handles large files efficiently by clearing output buffers and streaming content, and sets headers for content type, disposition, length, transfer encoding, and caching as needed. Supports partial content delivery for media streaming via HTTP range requests.
-     *
-     * @param string $filepath The absolute path to the file to be sent.
-     * @param string $mediaType The MIME type of the file.
-     * @param string|null $filename Optional filename to use in the Content-Disposition header; defaults to the file's basename.
-     * @param string|null $dispositionMode Whether to send the file 'inline' or as an 'attachment'; defaults to 'inline'.
-     * @param bool|null $cache Whether to enable client-side caching for 30 days; defaults to false.
-     * @return \Laminas\Http\PhpEnvironment\Response The HTTP response object after sending the file.
+     * @see \Access\Controller\AccessFileController::sendFile()
+     * @see \DerivativeMedia\Controller\IndexController::sendFile()
+     * @see \Statistics\Controller\DownloadController::sendFile()
+     * and
+     * @see \ImageServer\Controller\ImageController::fetchAction()
      */
     protected function sendFile(
         string $filepath,
@@ -289,11 +317,7 @@ class IndexController extends \Omeka\Controller\IndexController
     }
 
     /**
-     * Returns debugging information about video viewer detection and configuration.
-     *
-     * Provides details on active video viewers, the best viewer selection, and viewer detection debug info. Also includes a sample video media item and its URL strategy if available, along with a timestamp.
-     *
-     * @return \Laminas\View\Model\JsonModel JSON response containing viewer detection debug data.
+     * Debug action to display viewer detection information
      */
     public function debugAction()
     {
@@ -332,11 +356,8 @@ class IndexController extends \Omeka\Controller\IndexController
     }
 
     /**
-     * Renders a dedicated video player page for a media item using the preferred viewer.
-     *
-     * Retrieves the specified media and site by their identifiers, determines the best available video viewer, and returns a view model for the video player page. Returns a 404 response if the media or site is not found.
-     *
-     * @return \Laminas\View\Model\ViewModel The view model for the video player page.
+     * Video player action that respects the preferred viewer setting
+     * This creates a dedicated video player page with only the preferred viewer
      */
     public function videoPlayerAction()
     {
@@ -380,5 +401,174 @@ class IndexController extends \Omeka\Controller\IndexController
         $viewModel->setTemplate('derivative-media/video-player');
 
         return $viewModel;
+    }
+
+    /**
+     * SECURITY: Validate path component to prevent path traversal attacks
+     *
+     * @param string|null $component The path component to validate
+     * @param string $type The type of component (for error messages)
+     * @return string|null Sanitized component or null if invalid
+     */
+    private function validatePathComponent(?string $component, string $type): ?string
+    {
+        if (empty($component)) {
+            return null;
+        }
+
+        // SECURITY: Block path traversal attempts
+        if (strpos($component, '..') !== false ||
+            strpos($component, '/') !== false ||
+            strpos($component, '\\') !== false ||
+            strpos($component, "\0") !== false) {
+            error_log("DerivativeMedia: Path traversal attempt in $type: $component");
+            return null;
+        }
+
+        // SECURITY: Only allow alphanumeric, dash, underscore, and dot
+        if (!preg_match('/^[a-zA-Z0-9._-]+$/', $component)) {
+            error_log("DerivativeMedia: Invalid characters in $type: $component");
+            return null;
+        }
+
+        // SECURITY: Limit length to prevent buffer overflow attacks
+        if (strlen($component) > 255) {
+            error_log("DerivativeMedia: Component too long in $type: " . strlen($component) . " chars");
+            return null;
+        }
+
+        return $component;
+    }
+
+    /**
+     * SECURITY: Validate filename to prevent malicious filenames
+     *
+     * @param string|null $filename The filename to validate
+     * @return string|null Sanitized filename or null if invalid
+     */
+    private function validateFilename(?string $filename): ?string
+    {
+        if (empty($filename)) {
+            return null;
+        }
+
+        // SECURITY: Block path traversal and dangerous characters
+        if (strpos($filename, '..') !== false ||
+            strpos($filename, '/') !== false ||
+            strpos($filename, '\\') !== false ||
+            strpos($filename, "\0") !== false) {
+            error_log("DerivativeMedia: Path traversal attempt in filename: $filename");
+            return null;
+        }
+
+        // SECURITY: Validate filename format (allow common file extensions)
+        if (!preg_match('/^[a-zA-Z0-9._-]+\.[a-zA-Z0-9]+$/', $filename)) {
+            error_log("DerivativeMedia: Invalid filename format: $filename");
+            return null;
+        }
+
+        // SECURITY: Limit filename length
+        if (strlen($filename) > 255) {
+            error_log("DerivativeMedia: Filename too long: " . strlen($filename) . " chars");
+            return null;
+        }
+
+        return $filename;
+    }
+
+    /**
+     * SECURITY: Build secure file path with validation
+     *
+     * @param string $folder Validated folder component
+     * @param string $id Validated ID component
+     * @param string $filename Validated filename
+     * @return string Secure relative file path
+     */
+    private function buildSecureFilePath(string $folder, string $id, string $filename): string
+    {
+        // SECURITY: Use explicit path construction to prevent injection
+        return sprintf('%s/%s/%s', $folder, $id, $filename);
+    }
+
+    /**
+     * SECURITY: Validate that the final path is within the allowed base directory
+     *
+     * @param string $fullPath The full path to validate
+     * @param string $basePath The allowed base directory
+     * @return bool True if path is safe, false if potential traversal
+     */
+    private function isPathSafe(string $fullPath, string $basePath): bool
+    {
+        // SECURITY: Resolve real paths to handle symlinks and relative paths
+        $realFullPath = realpath($fullPath);
+        $realBasePath = realpath($basePath);
+
+        // If realpath fails, the path doesn't exist or is invalid
+        if ($realFullPath === false || $realBasePath === false) {
+            return false;
+        }
+
+        // SECURITY: Ensure the full path starts with the base path
+        return strpos($realFullPath, $realBasePath) === 0;
+    }
+
+    /**
+     * SECURITY: Get secure media type based on file extension
+     *
+     * @param string $filename The filename to analyze
+     * @return string Safe media type
+     */
+    private function getSecureMediaType(string $filename): string
+    {
+        // SECURITY: Use whitelist of allowed file extensions and their media types
+        $allowedTypes = [
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+            'mp4' => 'video/mp4',
+            'webm' => 'video/webm',
+            'ogg' => 'video/ogg',
+            'mp3' => 'audio/mpeg',
+            'wav' => 'audio/wav',
+            'pdf' => 'application/pdf',
+            'txt' => 'text/plain',
+        ];
+
+        $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+
+        // SECURITY: Return safe media type or default to octet-stream
+        return $allowedTypes[$extension] ?? 'application/octet-stream';
+    }
+
+    /**
+     * SECURITY: Send file content securely without direct filesystem access
+     *
+     * @param string $content File content
+     * @param string $mediaType Media type
+     * @param string $filename Filename for download
+     * @param string $disposition Content disposition (inline/attachment)
+     * @return \Laminas\Http\PhpEnvironment\Response
+     */
+    private function sendFileContent(string $content, string $mediaType, string $filename, string $disposition): \Laminas\Http\PhpEnvironment\Response
+    {
+        $response = $this->getResponse();
+
+        // SECURITY: Sanitize filename for header
+        $safeFilename = preg_replace('/[^a-zA-Z0-9._-]/', '_', $filename);
+
+        $headers = $response->getHeaders()
+            ->addHeaderLine(sprintf('Content-Type: %s', $mediaType))
+            ->addHeaderLine(sprintf('Content-Disposition: %s; filename="%s"', $disposition, $safeFilename))
+            ->addHeaderLine(sprintf('Content-Length: %s', strlen($content)))
+            ->addHeaderLine('Content-Transfer-Encoding: binary')
+            ->addHeaderLine('Cache-Control: private, max-age=3600')
+            ->addHeaderLine('X-Content-Type-Options: nosniff')
+            ->addHeaderLine('X-Frame-Options: DENY');
+
+        $response->setContent($content);
+
+        return $response;
     }
 }

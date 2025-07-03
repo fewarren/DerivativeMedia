@@ -14,6 +14,8 @@ class DebugManager
     const COMPONENT_API = 'API';
     const COMPONENT_RENDERER = 'RENDERER';
     const COMPONENT_HELPER = 'HELPER';
+    const COMPONENT_MODULE = 'MODULE';
+    const COMPONENT_THUMBNAILER = 'THUMBNAILER';
 
     /**
      * @var Logger

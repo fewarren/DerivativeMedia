@@ -104,8 +104,8 @@ class GenerateVideoThumbnails extends AbstractJob
                             continue;
                         }
 
-                        // Generate thumbnail
-                        $success = $this->videoThumbnailService->generateThumbnail($mediaEntity, $percentage);
+                        // Generate thumbnail with force parameter
+                        $success = $this->videoThumbnailService->generateThumbnail($mediaEntity, $percentage, $forceRegenerate);
 
                         if ($success) {
                             $this->debugManager->logInfo("Successfully generated thumbnail for media #{$mediaEntity->getId()}", DebugManager::COMPONENT_SERVICE, $opId);

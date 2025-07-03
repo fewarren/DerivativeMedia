@@ -14,7 +14,7 @@ thumbnails).
 
 ## 🎬 Video Thumbnail Enhancement
 
-This enhanced version includes **advanced video thumbnail generation** capabilities that automatically create proper video thumbnails using FFmpeg, replacing Omeka S's default black thumbnails for video files.
+This enhanced version includes **advanced video thumbnail generation** capabilities that automatically create proper video thumbnails using FFmpeg, replacing Omeka S's default black (first frame) thumbnails for video files. All the code for this enhancement was created by various AI agents with none created by a human. All debugging was done by AI agents with oversight by a software engineer. Thanks are due to the army of intelligent and dedicated people who have poured their insights and lives into creating these tools.  Special thanks to the creators of Claude Code, Roo Code, CoPilot, CodeRabbit, and most especially to the folks at Agument without who's work this enahncement would never have been born.
 
 ### Key Features
 

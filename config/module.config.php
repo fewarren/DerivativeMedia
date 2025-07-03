@@ -3,26 +3,49 @@
 namespace DerivativeMedia;
 
 return [
+    // FIXED: Disable custom file renderers by default to prevent item page layout issues
+    // These can be enabled via module settings if needed for specific use cases
     'file_renderers' => [
         'invokables' => [
             'audio' => Media\FileRenderer\AudioRenderer::class,
             'video' => Media\FileRenderer\VideoRenderer::class,
+        ],
+        'aliases' => [
+            // Override core aliases to use our custom renderers
+            'audio/ogg' => 'audio',
+            'audio/x-aac' => 'audio',
+            'audio/mpeg' => 'audio',
+            'audio/mp4' => 'audio',
+            'audio/x-wav' => 'audio',
+            'audio/x-aiff' => 'audio',
+            'application/ogg' => 'video',
+            'video/mp4' => 'video',
+            'video/quicktime' => 'video',
+            'video/x-msvideo' => 'video',
+            'video/ogg' => 'video',
+            'video/webm' => 'video',
+            'mp3' => 'audio',
         ],
     ],
     'view_manager' => [
         'template_path_stack' => [
             dirname(__DIR__) . '/view',
         ],
-        'strategies' => [
-            'ViewJsonStrategy',
-        ],
+        // SOLUTION: Remove global ViewJsonStrategy to prevent HTML over-escaping
+        // JSON responses are handled explicitly in controller actions using JsonModel
+        // This preserves JSON functionality while fixing theme display issues
     ],
     'view_helpers' => [
         'invokables' => [
             'derivatives' => View\Helper\Derivatives::class,
+            'fileSize' => View\Helper\FileSize::class,
+            'resourceValues' => View\Helper\ResourceValues::class,
         ],
         'factories' => [
             'derivativeList' => Service\ViewHelper\DerivativeListFactory::class,
+            'viewerDetector' => View\Helper\ViewerDetectorFactory::class,
+            // CRITICAL FIX: Override ServerUrl helper to fix URL generation issues
+            'serverUrl' => View\Helper\CustomServerUrlFactory::class,
         ],
         /** @deprecated Old helpers. */
         'aliases' => [
@@ -35,10 +58,37 @@ return [
             Form\ConfigForm::class => Form\ConfigForm::class,
             Form\SettingsFieldset::class => Form\SettingsFieldset::class,
         ],
+        'factories' => [
+            Form\VideoThumbnailBlockForm::class => Service\Form\VideoThumbnailBlockFormFactory::class,
+        ],
     ],
     'resource_page_block_layouts' => [
         'invokables' => [
             'derivativeMedia' => Site\ResourcePageBlockLayout\DerivativeMedia::class,
+        ],
+    ],
+    'block_layouts' => [
+        'factories' => [
+            'videoThumbnail' => Service\Site\BlockLayout\VideoThumbnailFactory::class,
+        ],
+    ],
+    'service_manager' => [
+        'factories' => [
+            'DerivativeMedia\Service\VideoThumbnailService' => Service\VideoThumbnailServiceFactory::class,
+            'DerivativeMedia\Service\DebugManager' => Service\DebugManagerFactory::class,
+            'DerivativeMedia\Service\ViewerDetector' => Service\ViewerDetectorFactory::class,
+            'DerivativeMedia\Service\EventListener' => Service\EventListenerFactory::class,
+            'DerivativeMedia\File\Thumbnailer\VideoAwareThumbnailer' => Service\VideoAwareThumbnailerFactory::class,
+        ],
+        'aliases' => [
+            // UNIVERSAL THUMBNAILER: Replace default Omeka thumbnailer with VideoAwareThumbnailer
+            // This handles ALL media types (videos via FFmpeg, images/PDFs via ImageMagick)
+            'Omeka\File\Thumbnailer' => 'DerivativeMedia\File\Thumbnailer\VideoAwareThumbnailer',
+        ],
+    ],
+    'thumbnails' => [
+        'factories' => [
+            'DerivativeMedia\VideoThumbnailer' => Service\File\Thumbnailer\VideoThumbnailerFactory::class,
         ],
     ],
     'controllers' => [
@@ -53,6 +103,11 @@ return [
         ],
         'factories' => [
             'createDerivative' => Service\ControllerPlugin\CreateDerivativeFactory::class,
+        ],
+    ],
+    'jobs' => [
+        'invokables' => [
+            'DerivativeMedia\Job\GenerateVideoThumbnails' => Job\GenerateVideoThumbnails::class,
         ],
     ],
     'router' => [
@@ -70,6 +125,51 @@ return [
                         '__NAMESPACE__' => 'DerivativeMedia\Controller',
                         'controller' => 'Index',
                         'action' => 'index',
+                    ],
+                ],
+            ],
+            // Debug route for viewer detection
+            'derivative-debug' => [
+                'type' => \Laminas\Router\Http\Literal::class,
+                'options' => [
+                    'route' => '/derivative-debug',
+                    'defaults' => [
+                        '__NAMESPACE__' => 'DerivativeMedia\Controller',
+                        'controller' => 'Index',
+                        'action' => 'debug',
+                    ],
+                ],
+            ],
+            // Video player route that respects preferred viewer setting
+            'derivative-video-player' => [
+                'type' => \Laminas\Router\Http\Segment::class,
+                'options' => [
+                    'route' => '/s/:site-slug/video-player/:media-id',
+                    'constraints' => [
+                        'site-slug' => '[a-zA-Z0-9_-]+',
+                        'media-id' => '\d+',
+                    ],
+                    'defaults' => [
+                        '__NAMESPACE__' => 'DerivativeMedia\Controller',
+                        'controller' => 'Index',
+                        'action' => 'video-player',
+                    ],
+                ],
+            ],
+            // CRITICAL FIX: Missing download route for file serving
+            'derivative-download-files' => [
+                'type' => \Laminas\Router\Http\Segment::class,
+                'options' => [
+                    'route' => '/download/files/:folder/:id/:filename',
+                    'constraints' => [
+                        'folder' => '[a-zA-Z0-9_-]+',
+                        'id' => '\d+',
+                        'filename' => '[a-zA-Z0-9._-]+',
+                    ],
+                    'defaults' => [
+                        '__NAMESPACE__' => 'DerivativeMedia\Controller',
+                        'controller' => 'Index',
+                        'action' => 'download-file',
                     ],
                 ],
             ],
@@ -108,6 +208,21 @@ return [
             ],
             'derivativemedia_append_original_audio' => false,
             'derivativemedia_append_original_video' => false,
+            'derivativemedia_video_thumbnail_percentage' => 25,
+            'derivativemedia_video_thumbnail_enabled' => true,
+            'derivativemedia_ffmpeg_path' => '/usr/bin/ffmpeg',
+            'derivativemedia_ffprobe_path' => '/usr/bin/ffprobe',
+            'derivativemedia_preferred_viewer' => 'auto',
+            // FIXED: New settings to control item page behavior
+            'derivativemedia_enable_item_page_enhancements' => false,
+            'derivativemedia_enable_custom_file_renderers' => true,
+            // SECURITY: Download prevention setting
+            'derivativemedia_disable_video_downloads' => false,
+            // DEBUG: Enhanced debugging options
+            'derivativemedia_debug_enabled' => true,
+            'derivativemedia_debug_level' => 'detailed',
+            'derivativemedia_debug_log_file' => 'DerivativeMedia_debug.log',
+            'derivativemedia_debug_log_path' => null, // Auto-detect if null
         ],
     ],
 ];

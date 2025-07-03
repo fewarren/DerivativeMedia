@@ -1,0 +1,279 @@
+<?php
+/**
+ * @var \Laminas\View\Renderer\PhpRenderer $this
+ * @var \Omeka\Api\Representation\SitePageBlockRepresentation $block
+ * @var \Omeka\Api\Representation\SiteRepresentation $site
+ * @var array $data
+ * @var \DerivativeMedia\Service\VideoThumbnailService $videoThumbnailService
+ */
+
+$escape = $this->plugin('escapeHtml');
+$translate = $this->plugin('translate');
+
+$heading = $data['heading'] ?? '';
+$percentage = (int) ($data['override_percentage'] ?? 25);
+$template = $data['template'] ?? '';
+
+// Get selected media from block data
+$mediaId = $data['media_id'] ?? null;
+
+if (empty($mediaId)) {
+    return '<div class="video-thumbnail-empty">' . $translate('No video media selected for this block.') . '</div>';
+}
+
+try {
+    $videoMedia = $this->api()->read('media', $mediaId)->getContent();
+} catch (\Exception $e) {
+    return '<div class="video-thumbnail-error">' . $translate('Video media not found.') . '</div>';
+}
+
+// Verify this is actually a video file
+$mediaType = $videoMedia->mediaType();
+if (!$mediaType || strpos($mediaType, 'video/') !== 0) {
+    return '<div class="video-thumbnail-error">' . $translate('Selected media is not a video file.') . '</div>';
+}
+?>
+
+<?php if (!empty($heading)): ?>
+<h3><?= $escape($heading) ?></h3>
+<?php endif; ?>
+
+<div class="video-thumbnails <?= $escape($template) ?>">
+    <div class="video-thumbnail-item" data-media-id="<?= $videoMedia->id() ?>">
+        <div class="video-thumbnail-image">
+            <?php
+            // FIXED: Use proper route generation instead of manual URL construction
+            $siteSlug = $site ? $site->slug() : null;
+            
+            if ($siteSlug) {
+                // Use proper route helper for video player
+                try {
+                    $playerUrl = $this->url('derivative-video-player', [
+                        'site-slug' => $siteSlug,
+                        'media-id' => $videoMedia->id()
+                    ]);
+                } catch (\Exception $e) {
+                    // Fallback to media page if route fails
+                    $playerUrl = $this->url('site/resource-id', [
+                        'site-slug' => $siteSlug,
+                        'controller' => 'media',
+                        'id' => $videoMedia->id()
+                    ]);
+                }
+            } else {
+                // Fallback to direct media URL if no site
+                $playerUrl = $videoMedia->url();
+            }
+            ?>
+
+            <?php if ($videoMedia->hasThumbnails()): ?>
+                <!-- SECURITY FIX: Add rel="noopener" to prevent window.opener access -->
+                <a href="<?= $escape($playerUrl) ?>" target="_blank" rel="noopener" class="video-thumbnail-link">
+                    <div class="thumbnail-container">
+                        <?php
+                        // ENVIRONMENT-AWARE URL CONSTRUCTION: Use CustomServerUrl helper when available
+                        $thumbnailPath = $videoMedia->thumbnailUrl('medium');
+
+                        // Check if CustomServerUrl helper is available and use it for proper URL generation
+                        if ($this->getHelperPluginManager()->has('customServerUrl')) {
+                            // Use our CustomServerUrl helper for environment-aware URL generation
+                            $customServerUrl = $this->customServerUrl();
+
+                            // If thumbnailUrl returns malformed URL, construct it properly using CustomServerUrl
+                            if (strpos($thumbnailPath, 'http:///') === 0) {
+                                // Extract just the file path part
+                                $filePath = str_replace('http:///', '', $thumbnailPath);
+                                $thumbnailUrl = rtrim($customServerUrl, '/') . '/' . ltrim($filePath, '/');
+                            } else {
+                                $thumbnailUrl = $thumbnailPath;
+                            }
+                        } else {
+                            // Fallback: Dynamic base URL retrieval from application configuration
+                            $serviceLocator = $this->getHelperPluginManager()->getServiceLocator();
+
+                            // Try multiple sources for base URL in order of preference
+                            $baseUrl = null;
+
+                            // 1. Try application configuration
+                            try {
+                                $config = $serviceLocator->get('Config');
+                                $baseUrl = $config['base_url'] ?? null;
+                            } catch (\Exception $e) {
+                                // Config not available, continue to next method
+                            }
+
+                            // 2. Try Omeka settings
+                            if (!$baseUrl) {
+                                try {
+                                    $settings = $serviceLocator->get('Omeka\Settings');
+                                    $baseUrl = $settings->get('base_url');
+                                } catch (\Exception $e) {
+                                    // Settings not available, continue to next method
+                                }
+                            }
+
+                            // 3. Try to construct from current request
+                            if (!$baseUrl) {
+                                try {
+                                    $request = $serviceLocator->get('Request');
+                                    $uri = $request->getUri();
+                                    $baseUrl = $uri->getScheme() . '://' . $uri->getHost();
+                                    if ($uri->getPort() && !in_array($uri->getPort(), [80, 443])) {
+                                        $baseUrl .= ':' . $uri->getPort();
+                                    }
+                                    // Add base path if available
+                                    $basePath = $serviceLocator->get('ViewHelperManager')->get('BasePath');
+                                    if ($basePath && method_exists($basePath, '__invoke')) {
+                                        $baseUrl .= $basePath();
+                                    }
+                                } catch (\Exception $e) {
+                                    // Request not available, use final fallback
+                                    $baseUrl = '';
+                                }
+                            }
+
+                            // If thumbnailUrl returns malformed URL, construct it properly
+                            if (strpos($thumbnailPath, 'http:///') === 0) {
+                                // Extract just the file path part
+                                $filePath = str_replace('http:///', '', $thumbnailPath);
+                                if ($baseUrl) {
+                                    $thumbnailUrl = rtrim($baseUrl, '/') . '/' . ltrim($filePath, '/');
+                                } else {
+                                    // Last resort: use relative URL
+                                    $thumbnailUrl = '/' . ltrim($filePath, '/');
+                                }
+                            } else {
+                                $thumbnailUrl = $thumbnailPath;
+                            }
+                        }
+                        ?>
+                        <img src="<?= $escape($thumbnailUrl) ?>"
+                             alt="<?= $escape($videoMedia->displayTitle()) ?>"
+                             loading="lazy">
+                        <div class="play-overlay">
+                            <div class="play-button">▶</div>
+                        </div>
+                    </div>
+                </a>
+            <?php else: ?>
+                <a href="<?= $escape($playerUrl) ?>" target="_blank" class="video-thumbnail-link">
+                    <div class="video-placeholder">
+                        <span class="video-icon">🎬</span>
+                        <div class="play-overlay">
+                            <div class="play-button">▶</div>
+                        </div>
+                    </div>
+                </a>
+            <?php endif; ?>
+        </div>
+        <div class="video-thumbnail-info">
+            <h4><?= $escape($videoMedia->displayTitle()) ?></h4>
+            <?php if ($videoMedia->value('dcterms:description')): ?>
+                <p class="video-description"><?= $escape($videoMedia->value('dcterms:description')) ?></p>
+            <?php endif; ?>
+        </div>
+    </div>
+</div>
+
+<style>
+.video-thumbnails {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin: 1rem 0;
+}
+
+.video-thumbnail-item {
+    flex: 1;
+    min-width: 300px;
+    max-width: 400px;
+}
+
+.video-thumbnail-image {
+    position: relative;
+    margin-bottom: 0.5rem;
+}
+
+.thumbnail-container,
+.video-placeholder {
+    position: relative;
+    width: 100%;
+    height: 200px;
+    overflow: hidden;
+    border-radius: 8px;
+    background: #f0f0f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.thumbnail-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.video-placeholder {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-size: 3rem;
+}
+
+.play-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.video-thumbnail-link:hover .play-overlay {
+    opacity: 1;
+}
+
+.play-button {
+    width: 60px;
+    height: 60px;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: #333;
+    transition: transform 0.2s ease;
+}
+
+.play-button:hover {
+    transform: scale(1.1);
+}
+
+.video-thumbnail-info h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.1rem;
+    line-height: 1.3;
+}
+
+.video-description {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #666;
+    line-height: 1.4;
+}
+
+.video-thumbnail-empty,
+.video-thumbnail-error {
+    padding: 2rem;
+    text-align: center;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    color: #6c757d;
+}
+</style>

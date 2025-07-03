@@ -289,6 +289,61 @@ If you were previously using a version with hardcoded URLs, you need to:
 3. ✅ **Restart your web server** to ensure configuration changes take effect
 4. ✅ **Test URL generation** by uploading a new video and checking thumbnail URLs
 
+## Production Deployment
+
+### Deployment Best Practices
+
+For production deployments, follow these guidelines:
+
+#### 1. Configuration Management
+- ✅ **Never hardcode URLs**: Use `local.config.php` for all environment-specific settings
+- ✅ **Environment variables**: Use `getenv()` for Docker/container deployments
+- ✅ **Version control**: Exclude `local.config.php` from version control
+- ✅ **Documentation**: Document required environment variables for your team
+
+#### 2. Service Configuration
+```php
+// Required in local.config.php for production
+'service_manager' => [
+    'aliases' => [
+        'Omeka\File\Store' => 'Omeka\File\Store\Local',
+        'Omeka\File\Thumbnailer' => 'DerivativeMedia\File\Thumbnailer\VideoAwareThumbnailer',
+    ],
+],
+```
+
+#### 3. Performance Optimization
+- ✅ **Disable debug logging**: Turn off debug logging in production
+- ✅ **PHP OPcache**: Enable PHP OPcache for better performance
+- ✅ **File permissions**: Ensure proper file ownership and permissions
+- ✅ **Background jobs**: Use proper job queue management for large video processing
+
+#### 4. Security Considerations
+- ✅ **File permissions**: Restrict access to configuration files
+- ✅ **Download prevention**: Enable video download prevention if needed
+- ✅ **Path validation**: Ensure FFmpeg paths are secure and validated
+- ✅ **Error handling**: Proper error handling without exposing system information
+
+#### 5. Monitoring and Maintenance
+- ✅ **Log monitoring**: Set up log monitoring for errors and issues
+- ✅ **Job monitoring**: Monitor background job processing
+- ✅ **Disk space**: Monitor file storage for thumbnail generation
+- ✅ **Performance**: Monitor FFmpeg processing performance
+
+### Deployment Checklist
+
+Before deploying to production:
+
+- [ ] ✅ **FFmpeg installed** and accessible at configured path
+- [ ] ✅ **local.config.php** configured with production URLs
+- [ ] ✅ **File permissions** set correctly for web server
+- [ ] ✅ **Module upgraded** to latest version
+- [ ] ✅ **Debug logging** disabled or configured appropriately
+- [ ] ✅ **Background jobs** tested and working
+- [ ] ✅ **Video uploads** tested with thumbnail generation
+- [ ] ✅ **URL generation** verified for production domain
+- [ ] ✅ **Error handling** tested with invalid videos
+- [ ] ✅ **Performance** tested with large video files
 
 ## Configuration
 
@@ -335,9 +390,20 @@ When you upload a new video file:
 To regenerate thumbnails for existing videos:
 1. Go to Admin → Modules → DerivativeMedia → Configure
 2. Set the desired thumbnail position percentage
-3. Check "Force Regenerate Thumbnails" if needed
+3. **Check "Force Regenerate Existing Thumbnails"** to overwrite existing thumbnails
 4. Click "Process Video Thumbnails"
 5. Monitor progress in Admin → Jobs
+
+**Important**: The Force option is now working correctly. When checked:
+- ✅ **Regenerates All**: Processes videos even if thumbnails already exist
+- ✅ **Overwrites Files**: Replaces existing thumbnail files
+- ✅ **Logs Activity**: Clear logging of force regeneration status
+- ✅ **Batch Processing**: Works with bulk thumbnail generation
+
+**When Force is NOT checked**:
+- ⏭️ **Skips Existing**: Videos with thumbnails are skipped
+- 🚀 **Faster Processing**: Only processes videos without thumbnails
+- 📊 **Selective**: Ideal for processing new uploads only
 
 ### Download Prevention
 
@@ -587,25 +653,65 @@ Key services are registered in `config/module.config.php`:
 #### VideoThumbnailService Methods
 
 ```php
-// Generate thumbnail for a media object
-$success = $videoThumbnailService->generateThumbnail($media, $percentage);
+// Generate thumbnail for a media object (with force regeneration option)
+$success = $videoThumbnailService->generateThumbnail($media, $percentage, $forceRegenerate);
 
 // Check if media is a video file
 $isVideo = $videoThumbnailService->isVideoFile($media);
 
 // Get thumbnail path for media
 $thumbnailPath = $videoThumbnailService->getThumbnailPath($media, $size);
+
+// Check if media has existing thumbnails
+$hasExisting = $videoThumbnailService->hasExistingThumbnails($media);
+
+// Get video duration
+$duration = $videoThumbnailService->getVideoDuration($media);
+```
+
+#### DebugManager Service
+
+```php
+// Get debug manager instance
+$debugManager = $serviceManager->get('DerivativeMedia\Service\DebugManager');
+
+// Log messages by component
+$debugManager->logInfo('Message', DebugManager::COMPONENT_MODULE, $operationId);
+$debugManager->logDebug('Debug info', DebugManager::COMPONENT_THUMBNAILER, $operationId);
+$debugManager->logWarning('Warning', DebugManager::COMPONENT_RENDERER, $operationId);
+$debugManager->logError('Error message', DebugManager::COMPONENT_SERVICE, $operationId);
+
+// Available components
+DebugManager::COMPONENT_MODULE      // Module-level operations
+DebugManager::COMPONENT_RENDERER    // File rendering
+DebugManager::COMPONENT_THUMBNAILER // Thumbnail generation
+DebugManager::COMPONENT_SERVICE     // Background services
+DebugManager::COMPONENT_HELPER      // View helpers
+DebugManager::COMPONENT_FACTORY     // Service factories
+DebugManager::COMPONENT_BLOCK       // Block layouts
+DebugManager::COMPONENT_FORM        // Form processing
+DebugManager::COMPONENT_API         // API operations
 ```
 
 #### Configuration Settings
 
-| Setting Key | Type | Description |
-|-------------|------|-------------|
-| `derivativemedia_video_thumbnail_enabled` | boolean | Enable/disable video thumbnails |
-| `derivativemedia_video_thumbnail_percentage` | integer | Thumbnail position (0-100%) |
-| `derivativemedia_disable_video_downloads` | boolean | Enable download prevention |
-| `derivativemedia_ffmpeg_path` | string | Path to FFmpeg executable |
-| `derivativemedia_ffprobe_path` | string | Path to FFprobe executable |
+| Setting Key | Type | Description | Default |
+|-------------|------|-------------|---------|
+| `derivativemedia_video_thumbnail_enabled` | boolean | Enable/disable video thumbnails | `true` |
+| `derivativemedia_video_thumbnail_percentage` | integer | Thumbnail position (0-100%) | `15` |
+| `derivativemedia_disable_video_downloads` | boolean | Enable download prevention | `false` |
+| `derivativemedia_ffmpeg_path` | string | Path to FFmpeg executable | `/usr/bin/ffmpeg` |
+| `derivativemedia_ffprobe_path` | string | Path to FFprobe executable | `/usr/bin/ffprobe` |
+| `derivativemedia_debug_enabled` | boolean | Enable debug logging | `false` |
+
+#### Job Parameters
+
+| Parameter | Type | Description | Usage |
+|-----------|------|-------------|-------|
+| `force_regenerate` | boolean | Force regeneration of existing thumbnails | Job processing |
+| `percentage` | integer | Thumbnail extraction position | Job processing |
+| `query` | array | Media query parameters | Batch processing |
+| `media_id` | integer | Specific media ID to process | Single media |
 
 
 ## Features
@@ -814,12 +920,79 @@ Use this checklist to ensure your configuration follows Omeka S best practices:
 | Config not working | Syntax errors or caching | Check syntax, restart web server |
 | Environment issues | Hardcoded values | Use environment variables in local.config.php |
 
+### Debugging and Logging
+
+The module includes a comprehensive logging system for troubleshooting:
+
+#### Debug Configuration
+
+Enable debug logging in the module configuration:
+1. Go to Admin → Modules → DerivativeMedia → Configure
+2. Check "Enable Debug Logging" (if available)
+3. Save configuration
+
+#### Log Locations
+
+- **Application Logs**: `/var/www/omeka-s/logs/application.log`
+- **Apache Error Logs**: `/var/log/apache2/omeka-s_error.log`
+- **System Logs**: `/var/log/syslog` (for FFmpeg issues)
+
+#### Debug Components
+
+The module logs activities by component:
+- **MODULE**: Bootstrap, configuration, event handling
+- **RENDERER**: Video/audio file rendering
+- **THUMBNAILER**: Thumbnail generation processes
+- **SERVICE**: Background services and jobs
+- **HELPER**: View helpers and URL generation
+- **FACTORY**: Service factory operations
+- **BLOCK**: Block layout rendering
+- **FORM**: Configuration form processing
+- **API**: API interactions
+
+#### Common Debug Scenarios
+
+```bash
+# Monitor thumbnail generation in real-time
+tail -f /var/www/omeka-s/logs/application.log | grep "THUMBNAILER"
+
+# Check for URL generation issues
+tail -f /var/www/omeka-s/logs/application.log | grep "HELPER"
+
+# Monitor job processing
+tail -f /var/www/omeka-s/logs/application.log | grep "SERVICE"
+
+# Check module bootstrap issues
+tail -f /var/www/omeka-s/logs/application.log | grep "MODULE"
+```
+
+#### Force Regeneration Debugging
+
+If force regeneration isn't working:
+
+1. **Check Job Arguments**:
+   ```bash
+   grep "force_regenerate" /var/www/omeka-s/logs/application.log
+   ```
+
+2. **Verify Service Calls**:
+   ```bash
+   grep "generateThumbnail.*force" /var/www/omeka-s/logs/application.log
+   ```
+
+3. **Monitor Thumbnail Processing**:
+   ```bash
+   tail -f /var/www/omeka-s/logs/application.log | grep "Force regeneration"
+   ```
+
 ### Getting Help
 
 For additional support:
 - 📖 Check the [module issues] page for known issues
 - 🐛 Report bugs with detailed error messages and server configuration
 - 💡 Include FFmpeg version, PHP version, and Omeka S version in reports
+- 📋 Include relevant log excerpts when reporting issues
+- 🔍 Enable debug logging and include component-specific logs
 
 
 License
@@ -882,6 +1055,39 @@ of the CeCILL license and that you accept its terms.
 - **Omeka S Best Practices Compliance**: All environment-specific settings moved to `local.config.php`
 - **Environment Variable Support**: Docker and CI/CD friendly configuration
 - **Auto-Detection Fallbacks**: Graceful handling of missing configuration
+
+#### Recent Fixes and Enhancements (Latest)
+
+##### 🔧 **Force Regeneration Fix**
+- **Fixed**: Force regeneration option now works correctly
+- **Issue**: Force checkbox was not properly passing parameter to thumbnail service
+- **Solution**: Updated job processing to include force parameter in service calls
+- **Result**: Checking "Force regenerate existing thumbnails" now actually regenerates thumbnails
+
+##### 🏗️ **Modern Framework Compatibility**
+- **Fixed**: Replaced all deprecated `getServiceLocator()` calls with proper dependency injection
+- **Enhanced**: Module now fully compatible with Laminas v3 patterns
+- **Improved**: Better error handling and service access throughout the module
+- **Result**: No more ServiceNotFoundException errors in configuration forms
+
+##### 📝 **Configurable Logging System**
+- **Added**: Comprehensive DebugManager service for configurable logging
+- **Replaced**: All direct `error_log()` calls with conditional logging
+- **Enhanced**: Component-based logging with operation tracking
+- **Components**: MODULE, RENDERER, HELPER, THUMBNAILER, SERVICE, FACTORY, BLOCK, FORM, API
+- **Result**: Clean production logs with optional debug output
+
+##### 🌐 **Environment-Aware URL Generation**
+- **Fixed**: Hardcoded development URLs replaced with dynamic configuration
+- **Enhanced**: CustomServerUrl helper with malformed URL detection and correction
+- **Added**: Multi-source URL fallback system (Config → Settings → Request → Relative)
+- **Result**: URLs work correctly in any environment without hardcoded values
+
+##### 🎯 **Production-Ready Architecture**
+- **Implemented**: Complete separation of development and production concerns
+- **Enhanced**: All environment-specific settings moved to `local.config.php`
+- **Added**: Graceful degradation when services are unavailable
+- **Result**: Module works reliably across different deployment environments
 
 ### Previous Versions
 - See [module issues] and commit history for earlier changes

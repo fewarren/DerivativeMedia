@@ -12,78 +12,85 @@ use Laminas\Mvc\Controller\AbstractController;
 use Omeka\Module\AbstractModule;
 use Omeka\Entity\Media;
 use DerivativeMedia\Form;
+use DerivativeMedia\Service\DebugManager;
 
 class Module extends AbstractModule
 {
     /**
-     * Returns the module configuration array.
-     *
-     * @return array The configuration settings loaded from module.config.php.
+     * @var DebugManager|null
      */
+    private $debugManager;
+
     public function getConfig()
     {
         return include __DIR__ . '/config/module.config.php';
     }
 
-    /**
-     * Placeholder for module initialization logic.
-     *
-     * This method is reserved for future initialization steps when the module is loaded.
-     */
     public function init(ModuleManager $moduleManager): void
     {
         // Module initialization if needed
     }
 
-    /**
-     * Handles module bootstrap logic, including ACL rule addition, view helper override, and block layout diagnostics.
-     *
-     * This method ensures necessary access control rules are added, overrides the ServerUrl view helper to address URL generation issues, and logs diagnostic information about block layout registration and configuration. It also logs the activation of the module's clean bootstrap process.
-     *
-     * @param MvcEvent $event The MVC event triggering the bootstrap process.
-     */
     public function onBootstrap(MvcEvent $event): void
     {
         parent::onBootstrap($event);
+
+        // Initialize DebugManager for configurable logging
+        $this->initializeDebugManager($event);
+
         $this->addAclRules();
 
         // CRITICAL FIX: Override ServerUrl helper to fix URL generation issues
         $this->overrideServerUrlHelper($event);
 
-        // BOOTSTRAP_TRACE: Log block layout registration
-        try {
-            $serviceManager = $event->getApplication()->getServiceManager();
-            $blockLayoutManager = $serviceManager->get("Omeka\\BlockLayoutManager");
-            $registeredBlocks = $blockLayoutManager->getRegisteredNames();
-            error_log("BOOTSTRAP_TRACE: Registered block layouts: " . implode(", ", $registeredBlocks));
+        // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+        if ($this->debugManager) {
+            $operationId = 'bootstrap-' . uniqid();
+            $this->debugManager->logInfo('onBootstrap called - CLEAN WORKING version is active', DebugManager::COMPONENT_MODULE, $operationId);
 
-            if ($blockLayoutManager->has("videoThumbnail")) {
-                $videoBlock = $blockLayoutManager->get("videoThumbnail");
-                error_log("BOOTSTRAP_TRACE: videoThumbnail block class: " . get_class($videoBlock));
-            } else {
-                error_log("BOOTSTRAP_TRACE: videoThumbnail block NOT REGISTERED");
+            try {
+                $serviceManager = $event->getApplication()->getServiceManager();
+                $blockLayoutManager = $serviceManager->get("Omeka\\BlockLayoutManager");
+                $registeredBlocks = $blockLayoutManager->getRegisteredNames();
+                $this->debugManager->logDebug("Registered block layouts: " . implode(", ", $registeredBlocks), DebugManager::COMPONENT_MODULE, $operationId);
+
+                if ($blockLayoutManager->has("videoThumbnail")) {
+                    $videoBlock = $blockLayoutManager->get("videoThumbnail");
+                    $this->debugManager->logDebug("videoThumbnail block class: " . get_class($videoBlock), DebugManager::COMPONENT_MODULE, $operationId);
+                } else {
+                    $this->debugManager->logWarning("videoThumbnail block NOT REGISTERED", DebugManager::COMPONENT_MODULE, $operationId);
+                }
+
+                // Check if our factory is being called
+                $config = $serviceManager->get('Config');
+                if (isset($config['block_layouts']['factories']['videoThumbnail'])) {
+                    $this->debugManager->logDebug("videoThumbnail factory configured: " . $config['block_layouts']['factories']['videoThumbnail'], DebugManager::COMPONENT_MODULE, $operationId);
+                } else {
+                    $this->debugManager->logWarning("videoThumbnail factory NOT CONFIGURED", DebugManager::COMPONENT_MODULE, $operationId);
+                }
+
+            } catch (\Exception $e) {
+                $this->debugManager->logError("Error checking block layouts: " . $e->getMessage(), DebugManager::COMPONENT_MODULE, $operationId);
             }
-
-            // Check if our factory is being called
-            $config = $serviceManager->get('Config');
-            if (isset($config['block_layouts']['factories']['videoThumbnail'])) {
-                error_log("BOOTSTRAP_TRACE: videoThumbnail factory configured: " . $config['block_layouts']['factories']['videoThumbnail']);
-            } else {
-                error_log("BOOTSTRAP_TRACE: videoThumbnail factory NOT CONFIGURED");
-            }
-
-        } catch (Exception $e) {
-            error_log("BOOTSTRAP_TRACE: Error checking block layouts: " . $e->getMessage());
         }
-
-        // CLEAN VERSION: Minimal logging, no global thumbnailer interference
-        error_log('DerivativeMedia: onBootstrap called - CLEAN WORKING version is active');
     }
 
     /**
-     * Replaces the default ServerUrl view helper with a custom implementation to address URL generation issues.
-     *
-     * @param MvcEvent $event The MVC event containing application context.
+     * Initialize DebugManager for configurable logging
+     */
+    protected function initializeDebugManager(MvcEvent $event): void
+    {
+        try {
+            $serviceManager = $event->getApplication()->getServiceManager();
+            $this->debugManager = $serviceManager->get('DerivativeMedia\Service\DebugManager');
+        } catch (\Exception $e) {
+            // DebugManager not available, continue without logging
+            $this->debugManager = null;
+        }
+    }
+
+    /**
+     * Override the ServerUrl helper to fix URL generation issues
      */
     protected function overrideServerUrlHelper(MvcEvent $event): void
     {
@@ -96,31 +103,33 @@ class Module extends AbstractModule
                 return new View\Helper\CustomServerUrl();
             });
 
-            error_log('DerivativeMedia: ServerUrl helper override applied successfully');
+            // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+            if ($this->debugManager) {
+                $this->debugManager->logInfo('ServerUrl helper override applied successfully', DebugManager::COMPONENT_MODULE);
+            }
 
         } catch (\Exception $e) {
-            error_log('DerivativeMedia: Failed to override ServerUrl helper: ' . $e->getMessage());
+            // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+            if ($this->debugManager) {
+                $this->debugManager->logError('Failed to override ServerUrl helper: ' . $e->getMessage(), DebugManager::COMPONENT_MODULE);
+            }
         }
     }
 
     /**
-     * Placeholder for adding Access Control List (ACL) rules specific to the module.
-     *
-     * Extend this method to define custom ACL rules as needed.
+     * Add ACL rules for this module.
      */
     protected function addAclRules(): void
     {
         // Add any ACL rules if needed
     }
 
-    /**
-     * Attaches event listeners for video thumbnail generation on media creation and update events.
-     *
-     * Listeners are registered only for the `api.create.post` and `api.update.post` events of the `MediaAdapter` to trigger video thumbnail processing when relevant.
-     */
     public function attachListeners(SharedEventManagerInterface $sharedEventManager): void
     {
-        error_log('DerivativeMedia: attachListeners method called - CLEAN APPROACH');
+        // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+        if ($this->debugManager) {
+            $this->debugManager->logInfo('attachListeners method called - CLEAN APPROACH', DebugManager::COMPONENT_MODULE);
+        }
 
         // CLEAN APPROACH: Only attach essential listeners for video thumbnail functionality
         // No global thumbnailer interference that causes CSS issues
@@ -138,43 +147,88 @@ class Module extends AbstractModule
             [$this, 'handleVideoThumbnailGeneration']
         );
 
-        error_log('DerivativeMedia: Clean event listeners attached for video thumbnail functionality only');
-    }
-
-    /**
-     * Triggers video thumbnail generation for media entities of type video.
-     *
-     * If the provided event contains a media entity with a MIME type starting with 'video/', this method attempts to retrieve the VideoThumbnailService and initiate thumbnail generation for that media.
-     */
-    public function handleVideoThumbnailGeneration($event)
-    {
-        $media = $event->getParam('response')->getContent();
-        
-        // Only process video files
-        if (strpos($media->getMediaType(), 'video/') === 0) {
-            error_log('DerivativeMedia: Video media detected - ID: ' . $media->getId());
-            
-            // Use VideoThumbnailService for video thumbnail generation
-            $services = $this->getServiceLocator();
-            if ($services->has('DerivativeMedia\Service\VideoThumbnailService')) {
-                $videoThumbnailService = $services->get('DerivativeMedia\Service\VideoThumbnailService');
-                // Generate video thumbnail if needed
-            }
+        // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+        if ($this->debugManager) {
+            $this->debugManager->logInfo('Clean event listeners attached for video thumbnail functionality only', DebugManager::COMPONENT_MODULE);
         }
     }
 
     /**
-     * Generates and returns the HTML for the module's configuration form populated with current settings.
-     *
-     * @param PhpRenderer $renderer The renderer used to generate the form HTML.
-     * @return string The rendered configuration form HTML.
+     * Handle video thumbnail generation - clean approach
      */
+    public function handleVideoThumbnailGeneration($event)
+    {
+        $media = $event->getParam('response')->getContent();
+
+        // Only process video files
+        if (strpos($media->getMediaType(), 'video/') === 0) {
+            // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+            if ($this->debugManager) {
+                $operationId = 'video-thumb-' . uniqid();
+                $this->debugManager->logInfo('Video media detected - ID: ' . $media->getId(), DebugManager::COMPONENT_MODULE, $operationId);
+            }
+
+            // DEPENDENCY INJECTION FIX: Get services from event instead of deprecated service locator
+            $serviceManager = $event->getTarget()->getServiceLocator();
+            $settings = $serviceManager->get('Omeka\Settings');
+
+            // Check if automatic video thumbnail generation is enabled
+            $autoThumbnailEnabled = $settings->get('derivativemedia_video_thumbnail_enabled', false);
+            if (!$autoThumbnailEnabled) {
+                // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+                if ($this->debugManager) {
+                    $this->debugManager->logInfo('Automatic video thumbnail generation is disabled in settings', DebugManager::COMPONENT_MODULE, $operationId ?? 'video-thumb-' . uniqid());
+                }
+                return;
+            }
+
+            // Use VideoThumbnailService for video thumbnail generation
+            if ($serviceManager->has('DerivativeMedia\Service\VideoThumbnailService')) {
+                $videoThumbnailService = $serviceManager->get('DerivativeMedia\Service\VideoThumbnailService');
+
+                // CRITICAL FIX: Actually call the generateThumbnail method
+                try {
+                    // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+                    if ($this->debugManager) {
+                        $this->debugManager->logInfo('Calling generateThumbnail for media ID: ' . $media->getId(), DebugManager::COMPONENT_MODULE, $operationId ?? 'video-thumb-' . uniqid());
+                    }
+
+                    // Get configured thumbnail percentage
+                    $thumbnailPercentage = $settings->get('derivativemedia_video_thumbnail_percentage', 8);
+
+                    // For automatic generation, don't force regeneration (preserve existing thumbnails)
+                    $result = $videoThumbnailService->generateThumbnail($media, $thumbnailPercentage, false);
+
+                    // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+                    if ($this->debugManager) {
+                        if ($result) {
+                            $this->debugManager->logInfo('Video thumbnail generation successful for media ID: ' . $media->getId(), DebugManager::COMPONENT_MODULE, $operationId ?? 'video-thumb-' . uniqid());
+                        } else {
+                            $this->debugManager->logWarning('Video thumbnail generation failed for media ID: ' . $media->getId(), DebugManager::COMPONENT_MODULE, $operationId ?? 'video-thumb-' . uniqid());
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+                    if ($this->debugManager) {
+                        $this->debugManager->logError('Exception during video thumbnail generation for media ID: ' . $media->getId() . ' - ' . $e->getMessage(), DebugManager::COMPONENT_MODULE, $operationId ?? 'video-thumb-' . uniqid());
+                    }
+                }
+            } else {
+                // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+                if ($this->debugManager) {
+                    $this->debugManager->logError('VideoThumbnailService not available', DebugManager::COMPONENT_MODULE, $operationId ?? 'video-thumb-' . uniqid());
+                }
+            }
+        }
+    }
+
     public function getConfigForm(PhpRenderer $renderer)
     {
-        $services = $this->getServiceLocator();
-        $config = $services->get('Config');
-        $settings = $services->get('Omeka\Settings');
-        $form = $services->get('FormElementManager')->get(Form\ConfigForm::class);
+        // DEPENDENCY INJECTION FIX: Get services from renderer's service locator instead of deprecated getServiceLocator()
+        $serviceLocator = $renderer->getHelperPluginManager()->getServiceLocator();
+        $config = $serviceLocator->get('Config');
+        $settings = $serviceLocator->get('Omeka\Settings');
+        $form = $serviceLocator->get('FormElementManager')->get(Form\ConfigForm::class);
 
         $data = [];
         $defaultSettings = $config['derivativemedia']['settings'];
@@ -187,20 +241,13 @@ class Module extends AbstractModule
         return $html;
     }
 
-    /**
-     * Handles the module configuration form submission.
-     *
-     * Validates and saves configuration settings from the form. If the user requests video thumbnail generation, dispatches a background job to generate video thumbnails for matching media. Adds success or error messages to the controller messenger based on the outcome.
-     *
-     * @param AbstractController $controller The controller handling the configuration form request.
-     * @return bool True if the form was processed successfully, false if validation failed.
-     */
     public function handleConfigForm(AbstractController $controller)
     {
-        $services = $this->getServiceLocator();
-        $config = $services->get('Config');
-        $settings = $services->get('Omeka\Settings');
-        $form = $services->get('FormElementManager')->get(Form\ConfigForm::class);
+        // DEPENDENCY INJECTION FIX: Get services from controller's event instead of deprecated getServiceLocator()
+        $serviceManager = $controller->getEvent()->getApplication()->getServiceManager();
+        $config = $serviceManager->get('Config');
+        $settings = $serviceManager->get('Omeka\Settings');
+        $form = $serviceManager->get('FormElementManager')->get(Form\ConfigForm::class);
 
         $params = $controller->getRequest()->getPost();
 
@@ -222,10 +269,14 @@ class Module extends AbstractModule
 
         // Handle job dispatch for video thumbnail generation
         if (isset($params['process_video_thumbnails'])) {
-            error_log('DerivativeMedia: process_video_thumbnails button clicked');
+            // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+            if ($this->debugManager) {
+                $operationId = 'job-dispatch-' . uniqid();
+                $this->debugManager->logInfo('process_video_thumbnails button clicked', DebugManager::COMPONENT_MODULE, $operationId);
+            }
 
             try {
-                $jobDispatcher = $services->get('Omeka\Job\Dispatcher');
+                $jobDispatcher = $serviceManager->get('Omeka\Job\Dispatcher');
 
                 // Prepare job arguments
                 $jobArgs = [
@@ -239,7 +290,10 @@ class Module extends AbstractModule
                     $jobArgs['query']['fulltext_search'] = trim($params['video_query']);
                 }
 
-                error_log('DerivativeMedia: Dispatching GenerateVideoThumbnails job with args: ' . json_encode($jobArgs));
+                // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+                if ($this->debugManager) {
+                    $this->debugManager->logInfo('Dispatching GenerateVideoThumbnails job with args: ' . json_encode($jobArgs), DebugManager::COMPONENT_MODULE, $operationId ?? 'job-dispatch-' . uniqid());
+                }
 
                 // Dispatch the job
                 $job = $jobDispatcher->dispatch('DerivativeMedia\Job\GenerateVideoThumbnails', $jobArgs);
@@ -249,39 +303,35 @@ class Module extends AbstractModule
                         'Video thumbnail generation job started successfully. Job ID: %d. Check the Jobs page to monitor progress.',
                         $job->getId()
                     ));
-                    error_log('DerivativeMedia: Job dispatched successfully with ID: ' . $job->getId());
+                    // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+                    if ($this->debugManager) {
+                        $this->debugManager->logInfo('Job dispatched successfully with ID: ' . $job->getId(), DebugManager::COMPONENT_MODULE, $operationId ?? 'job-dispatch-' . uniqid());
+                    }
                 } else {
                     $controller->messenger()->addError('Failed to start video thumbnail generation job.');
-                    error_log('DerivativeMedia: Job dispatch failed - no job returned');
+                    // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+                    if ($this->debugManager) {
+                        $this->debugManager->logError('Job dispatch failed - no job returned', DebugManager::COMPONENT_MODULE, $operationId ?? 'job-dispatch-' . uniqid());
+                    }
                 }
 
             } catch (\Exception $e) {
                 $controller->messenger()->addError('Error starting video thumbnail generation job: ' . $e->getMessage());
-                error_log('DerivativeMedia: Job dispatch error: ' . $e->getMessage());
+                // CONFIGURABLE LOGGING FIX: Use DebugManager instead of direct error_log
+                if ($this->debugManager) {
+                    $this->debugManager->logError('Job dispatch error: ' . $e->getMessage(), DebugManager::COMPONENT_MODULE, $operationId ?? 'job-dispatch-' . uniqid());
+                }
             }
         }
 
         return true;
     }
 
-    /**
-     * Handles module upgrade logic between versions.
-     *
-     * This method is currently a placeholder and does not perform any actions.
-     *
-     * @param string $oldVersion The previous version of the module.
-     * @param string $newVersion The new version of the module.
-     */
     public function upgrade($oldVersion, $newVersion, ServiceLocatorInterface $serviceLocator): void
     {
         // Handle any upgrade logic if needed
     }
 
-    /**
-     * Performs cleanup tasks when the module is uninstalled.
-     *
-     * Currently, this method does not implement any cleanup logic.
-     */
     public function uninstall(ServiceLocatorInterface $serviceLocator): void
     {
         // Handle any cleanup if needed

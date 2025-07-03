@@ -81,7 +81,9 @@ return [
             'DerivativeMedia\File\Thumbnailer\VideoAwareThumbnailer' => Service\VideoAwareThumbnailerFactory::class,
         ],
         'aliases' => [
-            // UNIVERSAL THUMBNAILER: Handles ALL media types (videos, PDFs, images, etc.)
+            // UNIVERSAL THUMBNAILER: Replace default Omeka thumbnailer with VideoAwareThumbnailer
+            // This handles ALL media types (videos via FFmpeg, images/PDFs via ImageMagick)
+            'Omeka\File\Thumbnailer' => 'DerivativeMedia\File\Thumbnailer\VideoAwareThumbnailer',
         ],
     ],
     'thumbnails' => [

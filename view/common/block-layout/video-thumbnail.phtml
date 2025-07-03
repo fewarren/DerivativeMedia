@@ -67,21 +67,84 @@ if (!$mediaType || strpos($mediaType, 'video/') !== 0) {
             ?>
 
             <?php if ($videoMedia->hasThumbnails()): ?>
-                <a href="<?= $escape($playerUrl) ?>" target="_blank" class="video-thumbnail-link">
+                <!-- SECURITY FIX: Add rel="noopener" to prevent window.opener access -->
+                <a href="<?= $escape($playerUrl) ?>" target="_blank" rel="noopener" class="video-thumbnail-link">
                     <div class="thumbnail-container">
                         <?php
-                        // CRITICAL FIX: Direct URL construction to avoid broken ServerUrl helper
-                        $config = $this->getHelperPluginManager()->getServiceLocator()->get('Config');
-                        $baseUrl = $config['base_url'] ?? 'http://linuxapp-dev.srwc.local/omeka-s';
+                        // ENVIRONMENT-AWARE URL CONSTRUCTION: Use CustomServerUrl helper when available
                         $thumbnailPath = $videoMedia->thumbnailUrl('medium');
 
-                        // If thumbnailUrl returns malformed URL, construct it properly
-                        if (strpos($thumbnailPath, 'http:///') === 0) {
-                            // Extract just the file path part
-                            $filePath = str_replace('http:///', '', $thumbnailPath);
-                            $thumbnailUrl = rtrim($baseUrl, '/') . '/' . ltrim($filePath, '/');
+                        // Check if CustomServerUrl helper is available and use it for proper URL generation
+                        if ($this->getHelperPluginManager()->has('customServerUrl')) {
+                            // Use our CustomServerUrl helper for environment-aware URL generation
+                            $customServerUrl = $this->customServerUrl();
+
+                            // If thumbnailUrl returns malformed URL, construct it properly using CustomServerUrl
+                            if (strpos($thumbnailPath, 'http:///') === 0) {
+                                // Extract just the file path part
+                                $filePath = str_replace('http:///', '', $thumbnailPath);
+                                $thumbnailUrl = rtrim($customServerUrl, '/') . '/' . ltrim($filePath, '/');
+                            } else {
+                                $thumbnailUrl = $thumbnailPath;
+                            }
                         } else {
-                            $thumbnailUrl = $thumbnailPath;
+                            // Fallback: Dynamic base URL retrieval from application configuration
+                            $serviceLocator = $this->getHelperPluginManager()->getServiceLocator();
+
+                            // Try multiple sources for base URL in order of preference
+                            $baseUrl = null;
+
+                            // 1. Try application configuration
+                            try {
+                                $config = $serviceLocator->get('Config');
+                                $baseUrl = $config['base_url'] ?? null;
+                            } catch (\Exception $e) {
+                                // Config not available, continue to next method
+                            }
+
+                            // 2. Try Omeka settings
+                            if (!$baseUrl) {
+                                try {
+                                    $settings = $serviceLocator->get('Omeka\Settings');
+                                    $baseUrl = $settings->get('base_url');
+                                } catch (\Exception $e) {
+                                    // Settings not available, continue to next method
+                                }
+                            }
+
+                            // 3. Try to construct from current request
+                            if (!$baseUrl) {
+                                try {
+                                    $request = $serviceLocator->get('Request');
+                                    $uri = $request->getUri();
+                                    $baseUrl = $uri->getScheme() . '://' . $uri->getHost();
+                                    if ($uri->getPort() && !in_array($uri->getPort(), [80, 443])) {
+                                        $baseUrl .= ':' . $uri->getPort();
+                                    }
+                                    // Add base path if available
+                                    $basePath = $serviceLocator->get('ViewHelperManager')->get('BasePath');
+                                    if ($basePath && method_exists($basePath, '__invoke')) {
+                                        $baseUrl .= $basePath();
+                                    }
+                                } catch (\Exception $e) {
+                                    // Request not available, use final fallback
+                                    $baseUrl = '';
+                                }
+                            }
+
+                            // If thumbnailUrl returns malformed URL, construct it properly
+                            if (strpos($thumbnailPath, 'http:///') === 0) {
+                                // Extract just the file path part
+                                $filePath = str_replace('http:///', '', $thumbnailPath);
+                                if ($baseUrl) {
+                                    $thumbnailUrl = rtrim($baseUrl, '/') . '/' . ltrim($filePath, '/');
+                                } else {
+                                    // Last resort: use relative URL
+                                    $thumbnailUrl = '/' . ltrim($filePath, '/');
+                                }
+                            } else {
+                                $thumbnailUrl = $thumbnailPath;
+                            }
                         }
                         ?>
                         <img src="<?= $escape($thumbnailUrl) ?>"

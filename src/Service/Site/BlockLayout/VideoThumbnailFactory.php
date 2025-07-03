@@ -8,6 +8,14 @@ use Laminas\ServiceManager\Factory\FactoryInterface;
 
 class VideoThumbnailFactory implements FactoryInterface
 {
+    /**
+     * Creates and returns a new VideoThumbnail instance with its required dependencies.
+     *
+     * @param ContainerInterface $services The service container providing required dependencies.
+     * @param string $requestedName The name of the requested service.
+     * @param array|null $options Optional configuration options.
+     * @return VideoThumbnail The configured VideoThumbnail instance.
+     */
     public function __invoke(ContainerInterface $services, $requestedName, array $options = null)
     {
         return new VideoThumbnail(

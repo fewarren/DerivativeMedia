@@ -47,6 +47,11 @@ class VideoAwareThumbnailer extends ImageMagick
      */
     protected $defaultPercentage = 25;
 
+    /**
+     * Initializes the VideoAwareThumbnailer with FFmpeg and FFprobe paths and default thumbnail position.
+     *
+     * Sets up the thumbnailer to use specified or default paths for FFmpeg and FFprobe, and configures the default percentage position for video thumbnail extraction.
+     */
     public function __construct(Cli $cli, TempFileFactory $tempFileFactory, array $options = [])
     {
         parent::__construct($cli, $tempFileFactory, $options);
@@ -61,7 +66,15 @@ class VideoAwareThumbnailer extends ImageMagick
     }
 
     /**
-     * Create thumbnail using FFmpeg for videos, ImageMagick for everything else
+     * Creates a thumbnail for the source file, using FFmpeg for video files and ImageMagick for images and other media types.
+     *
+     * For video files, extracts a frame at a calculated position using FFmpeg and generates a JPEG thumbnail. For JPEG files already in thumbnail form, performs a direct resize using ImageMagick. For other files, ensures the source has an appropriate extension before delegating to the parent ImageMagick thumbnailer. Handles temporary file management and robust error handling for all cases.
+     *
+     * @param string $strategy The thumbnailing strategy (e.g., 'square', 'default').
+     * @param int $constraint The size constraint for the thumbnail.
+     * @param array $options Optional settings for thumbnail generation.
+     * @return string Path to the generated thumbnail image.
+     * @throws \Exception If the source file is missing or thumbnail generation fails.
      */
     public function create($strategy, $constraint, array $options = [])
     {
@@ -157,7 +170,15 @@ class VideoAwareThumbnailer extends ImageMagick
     }
 
     /**
-     * Create video thumbnail using FFmpeg
+     * Generates a JPEG thumbnail from a video file using FFmpeg, capturing a frame at a calculated position.
+     *
+     * Extracts a frame from the video at a specified percentage of its duration (or a default position if duration is unavailable), validates the generated image, and prepares it for further processing in the thumbnail pipeline.
+     *
+     * @param string $strategy The thumbnailing strategy (e.g., 'square' or default).
+     * @param int $constraint The size constraint for the thumbnail.
+     * @param array $options Optional settings, including 'percentage' for frame capture position.
+     * @return string The path to the generated thumbnail image (without extension).
+     * @throws \Exception If FFmpeg fails, the output file is invalid, or image validation fails.
      */
     protected function createVideoThumbnail($strategy, $constraint, array $options = [])
     {
@@ -256,7 +277,10 @@ class VideoAwareThumbnailer extends ImageMagick
     }
 
     /**
-     * Get video duration using FFprobe
+     * Retrieves the duration of a video file in seconds using FFprobe.
+     *
+     * @param string $videoPath Path to the video file.
+     * @return float Duration of the video in seconds, or 0 if unavailable.
      */
     protected function getVideoDuration($videoPath)
     {
@@ -271,7 +295,17 @@ class VideoAwareThumbnailer extends ImageMagick
     }
 
     /**
-     * Build FFmpeg command for thumbnail creation
+     * Constructs an FFmpeg command to extract a video frame as a thumbnail image.
+     *
+     * The command is built to capture a single frame at a specified position in the video, applying scaling and cropping filters based on the provided strategy and constraint. The output is formatted as a high-quality JPEG image.
+     *
+     * @param string $sourcePath Path to the source video file.
+     * @param string $outputPath Path where the generated thumbnail image will be saved.
+     * @param float $position Position in seconds within the video to capture the frame.
+     * @param string $strategy Thumbnailing strategy ('square' for square crop, otherwise scaled).
+     * @param int $constraint Size constraint for the thumbnail (dimension or width).
+     * @param array $options Additional options for command customization.
+     * @return string The complete FFmpeg command string.
      */
     protected function buildFFmpegCommand($sourcePath, $outputPath, $position, $strategy, $constraint, $options)
     {
@@ -311,7 +345,11 @@ class VideoAwareThumbnailer extends ImageMagick
     }
 
     /**
-     * Check if this thumbnailer can handle the given file
+     * Determines if the thumbnailer can process the current file.
+     *
+     * Returns true for supported video types if FFmpeg is available, or defers to the parent thumbnailer for other media types.
+     *
+     * @return bool True if the file can be thumbnailed, false otherwise.
      */
     public function canThumbnail()
     {
@@ -326,7 +364,9 @@ class VideoAwareThumbnailer extends ImageMagick
     }
 
     /**
-     * Check if FFmpeg is available
+     * Determines whether the FFmpeg binary is present and executable.
+     *
+     * @return bool True if FFmpeg is available; otherwise, false.
      */
     protected function checkFFmpegAvailable()
     {
@@ -334,7 +374,12 @@ class VideoAwareThumbnailer extends ImageMagick
     }
 
     /**
-     * Get appropriate file extension for media type
+     * Returns the appropriate file extension for a given media type.
+     *
+     * Defaults to 'jpg' if the media type is not recognized.
+     *
+     * @param string $mediaType The MIME type of the media.
+     * @return string The corresponding file extension.
      */
     protected function getExtensionForMediaType($mediaType)
     {
@@ -353,8 +398,16 @@ class VideoAwareThumbnailer extends ImageMagick
     }
 
     /**
-     * Create direct ImageMagick resize for JPEG thumbnails
-     * This bypasses Omeka's ImageMagick thumbnailer which adds problematic [0] frame syntax
+     * Resizes a JPEG image directly using ImageMagick, bypassing Omeka's default thumbnailer, with robust validation and multiple fallback strategies.
+     *
+     * Validates the source JPEG file for existence, size, readability, and integrity before attempting to resize. Supports both square and proportional resizing strategies. If the primary ImageMagick command fails, attempts simplified ImageMagick commands and, as a last resort, uses PHP's GD library for resizing. Throws an exception if all methods fail or if the output file is invalid.
+     *
+     * @param string $sourcePath Path to the source JPEG image.
+     * @param string $strategy Resizing strategy ('square' for square thumbnails, otherwise proportional).
+     * @param int $constraint Target dimension (width/height in pixels).
+     * @param array $options Optional additional options for resizing.
+     * @return string Path to the resized JPEG image.
+     * @throws \Exception If the source file is invalid or all resizing methods fail.
      */
     protected function createDirectImageResize($sourcePath, $strategy, $constraint, array $options = [])
     {

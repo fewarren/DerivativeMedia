@@ -13,15 +13,20 @@ class EventListener
      */
     protected $services;
 
+    /**
+     * Initializes the EventListener with the provided service container.
+     *
+     * @param \Interop\Container\ContainerInterface $services The service container for dependency retrieval.
+     */
     public function __construct($services)
     {
         $this->services = $services;
     }
 
     /**
-     * Get DebugManager instance with fallback
+     * Retrieves a DebugManager instance from the service container, or creates a new one if unavailable.
      *
-     * @return DebugManager
+     * @return DebugManager The DebugManager instance for logging and debugging.
      */
     protected function getDebugManager(): DebugManager
     {
@@ -34,7 +39,9 @@ class EventListener
     }
 
     /**
-     * Attach event listeners
+     * Attaches event listeners for media API events, job status changes, and media ingest events.
+     *
+     * Registers handlers for media creation and update events, job status changes, and media ingest completion to enable comprehensive detection and processing of media-related actions.
      */
     public function attach(SharedEventManagerInterface $sharedEventManager)
     {
@@ -93,7 +100,11 @@ class EventListener
     }
 
     /**
-     * Handle ANY media-related events - comprehensive detection
+     * Handles any media-related event, detecting video media and triggering thumbnail generation if enabled.
+     *
+     * Logs event details and inspects the response for media content. If a video media is detected and thumbnail generation is enabled in settings, initiates thumbnail creation. Also processes any previously stored video ingest information for deferred thumbnail generation.
+     *
+     * @param Event $event The triggered media-related event.
      */
     public function onAnyMediaEvent(Event $event)
     {
@@ -163,7 +174,9 @@ class EventListener
     }
 
     /**
-     * Handle job events
+     * Handles job-related events by logging the event name and, if available, the job class.
+     *
+     * @param Event $event The job event to handle.
      */
     public function onJobEvent(Event $event)
     {
@@ -182,7 +195,11 @@ class EventListener
     }
 
     /**
-     * Handle ingest events
+     * Handles media ingest events by detecting uploaded video files and storing their ingest information for deferred processing.
+     *
+     * If a video file is detected during the ingest event, its temporary file path, MIME type, and request data are recorded for later thumbnail generation.
+     *
+     * @param Event $event The ingest event containing file and request information.
      */
     public function onIngestEvent(Event $event)
     {
@@ -230,7 +247,13 @@ class EventListener
     }
 
     /**
-     * Store video ingest information for later processing
+     * Stores information about a video ingest operation in a temporary JSON file for deferred processing.
+     *
+     * The stored information includes the temporary file path, MIME type, timestamp, and a unique request ID.
+     *
+     * @param string $tempPath The path to the temporary video file.
+     * @param string $mimeType The MIME type of the video file.
+     * @param mixed $request The request object or data associated with the ingest operation.
      */
     protected function storeVideoIngestInfo($tempPath, $mimeType, $request)
     {
@@ -254,7 +277,12 @@ class EventListener
     }
 
     /**
-     * Process any stored video ingest information
+     * Processes stored video ingest information files to trigger video media handling.
+     *
+     * Scans the system's temporary directory for JSON files containing video ingest information.
+     * For each file, if it is at least 5 seconds old, attempts to find and process the corresponding video media, then deletes the file.
+     * Also removes files older than 5 minutes as cleanup.
+     * Logs progress and exceptions using error_log.
      */
     protected function processStoredVideoIngests()
     {
@@ -299,7 +327,10 @@ class EventListener
     }
 
     /**
-     * Find and process video media that was created from an ingest
+     * Searches for recently created video media matching the provided ingest information and generates a thumbnail for the first match found.
+     *
+     * @param array $ingestInfo Associative array containing ingest details such as MIME type and request ID.
+     * @return bool True if a matching video media was found and processed; false otherwise.
      */
     protected function findAndProcessVideoMedia($ingestInfo)
     {
@@ -346,7 +377,12 @@ class EventListener
     }
 
     /**
-     * Generate video thumbnail
+     * Generates a thumbnail image for the given video media at a configured percentage position.
+     *
+     * Attempts to create a video thumbnail using the VideoThumbnailService. The thumbnail position is determined by a percentage value from settings, defaulting to 25% if not set.
+     *
+     * @param object $media The media entity representing the video.
+     * @return bool True if the thumbnail was generated successfully, false otherwise.
      */
     protected function generateVideoThumbnail($media)
     {

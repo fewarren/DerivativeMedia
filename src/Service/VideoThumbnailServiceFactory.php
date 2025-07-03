@@ -7,6 +7,14 @@ use Laminas\ServiceManager\Factory\FactoryInterface;
 
 class VideoThumbnailServiceFactory implements FactoryInterface
 {
+    /**
+     * Creates and configures a VideoThumbnailService instance using settings and dependencies from the service container.
+     *
+     * Retrieves paths for ffmpeg and ffprobe, the thumbnail percentage, and the base file storage path from configuration and settings.
+     * Injects required dependencies including temporary file factory, thumbnailer, and logger. If supported, also injects the file store.
+     *
+     * @return VideoThumbnailService The configured video thumbnail service instance.
+     */
     public function __invoke(ContainerInterface $services, $requestedName, array $options = null)
     {
         $settings = $services->get('Omeka\Settings');

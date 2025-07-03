@@ -11,12 +11,14 @@ use Omeka\Api\Representation\AbstractResourceEntityRepresentation;
 class ResourceValues extends AbstractHelper
 {
     /**
-     * Display resource values/metadata in a formatted way.
+     * Generates formatted HTML output displaying all metadata values of a resource.
      *
-     * @param AbstractResourceEntityRepresentation $resource The resource (item, media, etc.)
-     * @param array|null $valueLang Language filter for values
-     * @param bool $filterLocale Whether to filter by locale
-     * @return string HTML output of resource values
+     * Iterates over each property of the given resource, optionally filtering values by language and locale. Renders each property with its label and values, formatting linked resources as hyperlinks, URIs as clickable links, and literals as escaped text.
+     *
+     * @param AbstractResourceEntityRepresentation $resource The resource whose metadata values will be displayed.
+     * @param array|null $valueLang Optional array of language codes to filter values.
+     * @param bool $filterLocale Whether to apply language filtering to the values.
+     * @return string HTML markup representing the resource's metadata values.
      */
     public function __invoke(AbstractResourceEntityRepresentation $resource, $valueLang = null, bool $filterLocale = false): string
     {
